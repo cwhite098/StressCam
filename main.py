@@ -39,7 +39,7 @@ while True:
 			for detection in results.detections:
 				# detection contains the coordinates
 				# draw the detected face points
-				mp_drawing.draw_detection(image, detection)
+				#mp_drawing.draw_detection(image, detection)
 				# Get the height of the face, relative to the frame
 				rel_height = detection.location_data.relative_bounding_box.height
 				rel_width = detection.location_data.relative_bounding_box.width
@@ -47,11 +47,11 @@ while True:
 				rel_x_min = detection.location_data.relative_bounding_box.xmin
 				# Position down the screen as a fraction of total height
 				rel_y_min = detection.location_data.relative_bounding_box.ymin
-				print(rel_x_min)
 
 
-		frame, bpm = HRM.get_bpm(image, (int(np.ceil(rel_y_min*realWidth)), int(np.ceil(rel_x_min*realHeight))), 
+		frame, bpm = HRM.get_bpm(image, (int(np.ceil(rel_y_min*realHeight)), int(np.ceil(rel_x_min*realWidth))), 
 										(int(rel_height*realHeight), int(rel_width*realWidth)))
+		
 
 
 		cv2.imshow('frame', frame)

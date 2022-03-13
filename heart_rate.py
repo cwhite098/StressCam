@@ -7,6 +7,7 @@ December 2018
 import numpy as np
 import cv2
 import sys
+import matplotlib.pyplot as plt
 
 class Heart_Rate_Monitor:
 
@@ -16,14 +17,14 @@ class Heart_Rate_Monitor:
         self.realWidth = 640
         self.realHeight = 480
         # Params for box
-        self.videoWidth = 320
-        self.videoHeight = 240
+        self.videoWidth = 100
+        self.videoHeight = 120
 
         self.videoChannels = 3
         self.videoFrameRate = 15
 
         # Color Magnification Parameters
-        self.levels = 3
+        self.levels = 2
         self.alpha = 170
         self.minFrequency = 1.0
         self.maxFrequency = 2.0
@@ -58,6 +59,27 @@ class Heart_Rate_Monitor:
 
         self.i = 0
 
+     
+        self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=2 , ncols=1)
+        self.ax1 = self.axes[0]
+        self.ax2 = self.axes[1]
+
+        self.ax1.set_ylim([50,120]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('BPM')
+        self.ax1.set_title('Beats Per Minute')
+
+        self.ax2.set_ylim([0,30]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
+        self.ax2.set_title('Fourier Transform')
+
+        self.spec = self.ax2.plot(self.frequencies, self.fourierTransformAvg, animated=True)[0]
+        self.line = self.ax1.plot(np.linspace(0,100,100),np.zeros(100), animated=True)[0]
+        self.fig.show()
+        self.fig.canvas.draw()
+        self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
+        self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
+
+        self.bpm_list = []
+        self.total_bpm_list = []
+
 
     # Helper Methods - modify these to get variable rect size
     def buildGauss(self, frame, levels):
@@ -78,15 +100,25 @@ class Heart_Rate_Monitor:
         filteredFrame = filteredFrame[:self.videoHeight, :self.videoWidth]
         return filteredFrame
 
+    def make_plots(self):
+        
+        self.fig.canvas.restore_region(self.background1)
+        self.fig.canvas.restore_region(self.background2)
+        self.line.set_ydata(self.bpm_list)
+        self.spec.set_ydata(self.fourierTransformAvg)
+ 
+        self.ax1.draw_artist(self.line)
+        self.ax2.draw_artist(self.spec)
+        self.fig.canvas.blit(self.ax1.bbox)
+        self.fig.canvas.blit(self.ax2.bbox)
+
 
 
     def get_bpm(self, frame, start_tuple, rect_dims):
 
 
         # Positions the detection box (just where the data is collected from, doesn't move box in display)
-        #detectionFrame = frame[int(videoHeight/2):int(realHeight-videoHeight/2), int(videoWidth/2):int(realWidth-videoWidth/2), :]
         detectionFrame = frame[start_tuple[0]:start_tuple[0]+self.videoHeight, start_tuple[1]:start_tuple[1]+self.videoWidth, :]
-
 
         # Construct Gaussian Pyramid
         # add it to the videoGauss buffer
@@ -122,23 +154,27 @@ class Heart_Rate_Monitor:
         self.bufferIndex = (self.bufferIndex + 1) % self.bufferSize
 
         # Set the detection region in total frame to the output of the fourier stuff
-        #frame[int(videoHeight/2):int(realHeight-videoHeight/2), int(videoWidth/2):int(realWidth-videoWidth/2), :] = outputFrame
         frame[start_tuple[0]:start_tuple[0]+self.videoHeight, start_tuple[1]:start_tuple[1]+self.videoWidth, :] = outputFrame
         
         # Displays the rectangle
-        #cv2.rectangle(frame, (int(videoWidth/2) , int(videoHeight/2)), (int(realWidth-videoWidth/2), int(realHeight-videoHeight/2)), boxColor, boxWeight)
-        # retangle((starting_tuple), (width, height), colour, weight)
         cv2.rectangle(frame, (start_tuple[1], start_tuple[0]), (start_tuple[1]+self.videoWidth, start_tuple[0]+self.videoHeight),
                                 self.boxColor, self.boxWeight)
 
         # Displays the text
         if self.i > self.bpmBufferSize:
             cv2.putText(frame, "BPM: %d" % self.bpmBuffer.mean(), self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
+            
+            # Get BPM
+            bpm = self.bpmBuffer.mean()
+            self.bpm_list.append(bpm)
+            self.total_bpm_list.append(bpm)
+            if len(self.bpm_list) == 101:
+                self.bpm_list.pop(0)
+                self.make_plots()
         else:
             cv2.putText(frame, "Calculating BPM...", self.loadingTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
+            bpm = 0
 
-        # Get BPM
-        bpm = self.bpmBuffer.mean()
 
         return frame, bpm
 
