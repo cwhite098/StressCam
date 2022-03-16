@@ -4,24 +4,24 @@ import matplotlib.pyplot as plt
 
 class Heart_Rate_Monitor:
 
-    def __init__(self):
+    def __init__(self, fps, videoWidth, videoHeight):
 
         # Set params for window
         self.realWidth = 640
         self.realHeight = 480
         # Params for box
-        self.videoWidth = 100
-        self.videoHeight = 120
+        self.videoWidth = videoWidth
+        self.videoHeight = videoHeight
 
         self.videoChannels = 3
-        self.videoFrameRate = 20
+        self.videoFrameRate = fps
 
         # Color Magnification Parameters
-        self.levels = 2
+        self.levels = 1
         self.alpha = 170
         self.minFrequency = 1.0
         self.maxFrequency = 2.0
-        self.bufferSize = 150
+        self.bufferSize = 300
         self.bufferIndex = 0
 
         # Output Display Parameters
@@ -51,8 +51,12 @@ class Heart_Rate_Monitor:
         self.bpmBufferSize = 10
         self.bpmBuffer = np.zeros((self.bpmBufferSize))
 
+        # POS method variables
         self.project_mat = [[0, 1, -1],
                             [-2, 1, 1]]
+        self.bufferSizePOS = 300
+        self.bufferPOS = []
+        self.totalPOS = []
 
         self.i = 0
         self.h = np.linspace(-1,1,150)
@@ -66,15 +70,15 @@ class Heart_Rate_Monitor:
         self.ax1.set_ylim([50,120]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('BPM')
         self.ax1.set_title('Beats Per Minute')
         # Set params for frequency spectrum
-        self.ax2.set_ylim([0,30]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
+        self.ax2.set_ylim([0,0.5]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
         self.ax2.set_title('Fourier Transform')
         # Set params for POS signal
-        self.ax3.set_ylim([-0.01,0.01]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('POS Signal')
+        self.ax3.set_ylim([-0.02,0.02]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('POS Signal')
         self.ax3.set_title('POS Signal')
         # Set the lines to be used for the plots
         self.spec = self.ax2.plot(self.frequencies, self.fourierTransformAvg, animated=True)[0]
         self.line = self.ax1.plot(np.linspace(0,100,100),np.zeros(100), animated=True)[0]
-        self.linePOS = self.ax3.plot(np.linspace(-1,1,150), np.zeros(150), animated=True)[0]
+        self.linePOS = self.ax3.plot(np.linspace(-1,1,self.bufferSize), np.zeros(self.bufferSize), animated=True)[0]
         self.fig.show()
         self.fig.canvas.draw()
         self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
@@ -134,17 +138,45 @@ class Heart_Rate_Monitor:
         # Get the average colour signals from buffer
         C = self.videoGauss.mean((1,2))
 
+        # Get average skin-average RGB values from frame
+        C = detectionFrame.mean((0,1))
+        meanC = C.mean()
+        C[:] = C[:] / meanC
+        S = np.matmul(self.project_mat, C)
+        self.bufferPOS.append(S)
+
+        if len(self.bufferPOS) > self.bufferSizePOS:
+            self.i = self.i + 1
+            signal = np.transpose(self.bufferPOS[-(self.bufferSizePOS+1):-1])
+
+            coeff = (np.std(signal[0,:])/np.std(signal[1,:]))
+            self.h = signal[0,:] + (coeff*signal[1,:])
+            self.h = self.h - np.mean(self.h)
+            self.POS_fourier = np.fft.fft(self.h)
+            self.POS_fourier[self.mask == False] = 0
+
+            
+            if len(self.bufferPOS) % self.bpmCalculationFrequency == 0:
+                self.i = self.i + 1
+                hz = self.frequencies[np.argmax(self.POS_fourier)]
+                bpm = 60.0 * hz
+                self.bpmBuffer[self.bpmBufferIndex] = bpm
+                self.bpmBufferIndex = (self.bpmBufferIndex + 1) % self.bpmBufferSize
+
+
+
         # Take the fourier transform of the frames in the buffer
         fourierTransform = np.fft.fft(self.videoGauss, axis=0)
 
         # Bandpass Filter - using mask defined above
         fourierTransform[self.mask == False] = 0
 
+        '''
         # Grab a Pulse
         if self.bufferIndex % self.bpmCalculationFrequency == 0:
             self.i = self.i + 1
 
-            # temporal normalisation for C ???
+            # temporal normalisation for C
             mean = C.mean(1)
             C[:,0] = C[:,0] / mean
             C[:,1] = C[:,1] / mean
@@ -155,7 +187,6 @@ class Heart_Rate_Monitor:
             coeff = (np.std(S[0,:])/np.std(S[1,:]))
             self.h = S[0,:] + (coeff*S[1,:])
             self.h = self.h - np.mean(self.h)
-            print(self.h)
             self.POS_fourier = np.fft.fft(self.h)
             self.POS_fourier[self.mask == False] = 0
 
@@ -168,6 +199,7 @@ class Heart_Rate_Monitor:
             bpm = 60.0 * hz
             self.bpmBuffer[self.bpmBufferIndex] = bpm
             self.bpmBufferIndex = (self.bpmBufferIndex + 1) % self.bpmBufferSize
+            '''
 
         # Amplify
         # Inverse FT
