@@ -1,4 +1,6 @@
+
 from heart_rate import Heart_Rate_Monitor
+from stroop import stroop_test
 import mediapipe as mp
 import cv2
 import numpy as np
@@ -28,7 +30,7 @@ prev_frame_time = 0
 new_frame_time = 0
 
 HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight)
-
+# st = stroop_test()
 while True:
 
 	# Read the output from the webcam
