@@ -84,3 +84,4 @@ while True:
 
 cap.release()
 cv2.destroyAllWindows()
+HRM.save_data('HRM_data.csv')
