@@ -4,6 +4,7 @@ from stroop import stroop_test
 import mediapipe as mp
 import cv2
 import numpy as np
+from stroop import *
 import time
 
 
@@ -69,7 +70,7 @@ while True:
 								,int(leye_coords.x*realWidth - (0.5*boxWidth)))
 
 
-		frame, bpm = HRM.get_bpm(image, start_tuple, 
+		frame = HRM.get_bpm(image, start_tuple, 
 										(int(rel_height*realHeight), int(rel_width*realWidth)))
 		
 

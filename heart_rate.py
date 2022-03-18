@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import pandas as pd
+import heartpy as hp
 
 class Heart_Rate_Monitor:
 
@@ -18,11 +19,11 @@ class Heart_Rate_Monitor:
         self.videoFrameRate = fps
 
         # Color Magnification Parameters
-        self.levels = 1
+        self.levels = 2
         self.alpha = 170
-        self.minFrequency = 1.0
+        self.minFrequency = 0.5 # maybe reduce this (1hz = 60bpm)
         self.maxFrequency = 2.0
-        self.bufferSize = 300
+        self.bufferSize = 100
         self.bufferIndex = 0
 
         # Output Display Parameters
@@ -35,6 +36,20 @@ class Heart_Rate_Monitor:
         self.boxColor = (0, 255, 0)
         self.boxWeight = 3
 
+        # Heart Rate Calculation Variables
+        self.bpmCalculationBuffer = 600
+        self.bpmBufferSize = 20
+        self.total_bpm = []
+
+        # POS method variables
+        self.project_mat = [[0, 1, -1],
+                            [-2, 1, 1]]
+        self.bufferSizePOS = 32
+        self.bufferPOS = []
+        self.totalPOS = []
+
+        self.h = np.linspace(-1,1,150)
+
         # Initialize Gaussian Pyramid
         self.firstFrame = np.zeros((self.videoHeight, self.videoWidth, self.videoChannels))
         self.firstGauss = self.buildGauss(self.firstFrame, self.levels+1)[self.levels]
@@ -43,25 +58,9 @@ class Heart_Rate_Monitor:
         self.fourierTransformAvg = np.zeros((self.bufferSize))
 
         # Bandpass Filter for Specified Frequencies
-        self.frequencies = (1.0*self.videoFrameRate) * np.arange(self.bufferSize) / (1.0*self.bufferSize)
-        self.mask = (self.frequencies >= self.minFrequency) & (self.frequencies <= self.maxFrequency)
-
-        # Heart Rate Calculation Variables
-        self.bpmCalculationFrequency = 20
-        self.bpmBufferIndex = 0
-        self.bpmBufferSize = 10
-        self.bpmBuffer = np.zeros((self.bpmBufferSize))
-        self.total_bpm = []
-
-        # POS method variables
-        self.project_mat = [[0, 1, -1],
-                            [-2, 1, 1]]
-        self.bufferSizePOS = 300
-        self.bufferPOS = []
-        self.totalPOS = []
-
-        self.i = 0
-        self.h = np.linspace(-1,1,150)
+        self.frequencies = np.linspace(0,4,self.bufferSizePOS)
+        mask_freqs = np.linspace(0,4,self.bufferSize)
+        self.mask = (mask_freqs >= self.minFrequency) & (mask_freqs <= self.maxFrequency)
 
         # Create figure with 2 plots
         self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=3 , ncols=1)
@@ -72,15 +71,15 @@ class Heart_Rate_Monitor:
         self.ax1.set_ylim([50,120]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('BPM')
         self.ax1.set_title('Beats Per Minute')
         # Set params for frequency spectrum
-        self.ax2.set_ylim([0,0.5]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
+        self.ax2.set_ylim([0,0.1]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
         self.ax2.set_title('Fourier Transform')
         # Set params for POS signal
         self.ax3.set_ylim([-0.02,0.02]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('POS Signal')
         self.ax3.set_title('POS Signal')
         # Set the lines to be used for the plots
-        self.spec = self.ax2.plot(self.frequencies, self.fourierTransformAvg, animated=True)[0]
-        self.line = self.ax1.plot(np.linspace(0,100,100),np.zeros(100), animated=True)[0]
-        self.linePOS = self.ax3.plot(np.linspace(-1,1,self.bufferSize), np.zeros(self.bufferSize), animated=True)[0]
+        self.spec = self.ax2.plot(self.frequencies, np.zeros(self.bufferSizePOS), animated=True)[0]
+        self.line = self.ax1.plot(np.linspace(0,self.bpmBufferSize,self.bpmBufferSize),np.zeros(self.bpmBufferSize), animated=True)[0]
+        self.linePOS = self.ax3.plot(np.linspace(-1,1,self.bufferSizePOS), np.zeros(self.bufferSizePOS), animated=True)[0]
         self.fig.show()
         self.fig.canvas.draw()
         self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
@@ -89,7 +88,6 @@ class Heart_Rate_Monitor:
 
         # Lists to store bpm data
         self.bpm_list = []
-        self.total_bpm_list = []
 
 
     # Helper Methods - modify these to get variable rect size
@@ -111,22 +109,27 @@ class Heart_Rate_Monitor:
         filteredFrame = filteredFrame[:self.videoHeight, :self.videoWidth]
         return filteredFrame
 
-    def make_plots(self):
+    def plot_bpm(self):
         
         self.fig.canvas.restore_region(self.background1)
+        self.line.set_ydata(self.bpm_list)  
+        self.ax1.draw_artist(self.line) 
+        self.fig.canvas.blit(self.ax1.bbox)
+        
+
+    def plot_POS(self):
+
         self.fig.canvas.restore_region(self.background2)
         self.fig.canvas.restore_region(self.background3)
-        self.line.set_ydata(self.bpm_list)
+
         self.spec.set_ydata(np.real(self.POS_fourier))
         self.linePOS.set_ydata(self.h)
- 
-        self.ax1.draw_artist(self.line)
+
         self.ax2.draw_artist(self.spec)
         self.ax3.draw_artist(self.linePOS)
-        self.fig.canvas.blit(self.ax1.bbox)
+
         self.fig.canvas.blit(self.ax2.bbox)
         self.fig.canvas.blit(self.ax3.bbox)
-
 
     def get_bpm(self, frame, start_tuple, rect_dims):
 
@@ -146,26 +149,40 @@ class Heart_Rate_Monitor:
         C[:] = C[:] / meanC
         S = np.matmul(self.project_mat, C)
         self.bufferPOS.append(S)
+        # Add to list for data saving
         self.totalPOS.append(S)
 
+        # if the POS signal buffer is above the set threshold
         if len(self.bufferPOS) > self.bufferSizePOS:
-            self.i = self.i + 1
+
+            # This section of code is just to plot the POS and fourier - is it necessary?
+            # Could wrap this as a separate function
             signal = np.transpose(self.bufferPOS[-(self.bufferSizePOS+1):-1])
 
             coeff = (np.std(signal[0,:])/np.std(signal[1,:]))
             self.h = signal[0,:] + (coeff*signal[1,:])
             self.h = self.h - np.mean(self.h)
-            self.POS_fourier = np.fft.fft(self.h)
-            self.POS_fourier[self.mask == False] = 0
 
-            
-            if len(self.bufferPOS) % self.bpmCalculationFrequency == 0:
-                self.i = self.i + 1
-                hz = self.frequencies[np.argmax(self.POS_fourier)]
-                bpm = 60.0 * hz
-                self.bpmBuffer[self.bpmBufferIndex] = bpm
-                self.bpmBufferIndex = (self.bpmBufferIndex + 1) % self.bpmBufferSize
-                self.total_bpm.append(bpm)
+            # Get POS fourier for plot
+            self.POS_fourier = np.fft.fft(self.h)
+            self.plot_POS()
+
+            # if the buffer is greater than the min data needed to get bpm
+            if len(self.bufferPOS) > self.bpmCalculationBuffer:
+
+                signal = np.transpose(self.bufferPOS[-(self.bpmCalculationBuffer+1):-1])
+
+                coeff = (np.std(signal[0,:])/np.std(signal[1,:]))
+                signal2 = signal[0,:] + (coeff*signal[1,:])
+                signal2 = signal2 - np.mean(self.h)
+
+                filtered_POS = hp.filtering.filter_signal(signal2, cutoff=(self.minFrequency, self.maxFrequency),
+                                                                sample_rate=self.videoFrameRate, order=3, filtertype='bandpass')
+                workingdata, measures = hp.process(filtered_POS, sample_rate=self.videoFrameRate)
+                bpm_hp = measures['bpm']
+                # get other measures here - breathing rate, HRV measures
+
+                self.total_bpm.append(bpm_hp)
 
         # Take the fourier transform of the frames in the buffer
         fourierTransform = np.fft.fft(self.videoGauss, axis=0)
@@ -192,23 +209,21 @@ class Heart_Rate_Monitor:
         cv2.rectangle(frame, (start_tuple[1], start_tuple[0]), (start_tuple[1]+self.videoWidth, start_tuple[0]+self.videoHeight),
                                 self.boxColor, self.boxWeight)
 
-        # Displays the text
-        if self.i > self.bpmBufferSize:
-            cv2.putText(frame, "BPM: %d" % self.bpmBuffer.mean(), self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
+        # Displays the text if first bpm calc has been done
+        if self.total_bpm:
+            # takes last calculated bpm value (every 20 frames (1 second))
+            cv2.putText(frame, "BPM: %d" % self.total_bpm[-1], self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
             
-            # Get BPM
-            bpm = self.bpmBuffer.mean()
-            self.bpm_list.append(bpm)
-            self.total_bpm_list.append(bpm)
-            if len(self.bpm_list) == 101:
-                self.bpm_list.pop(0)
-                self.make_plots()
+            # Get BPM subset and update plots
+            if len(self.total_bpm) > self.bpmBufferSize:
+                self.bpm_list = self.total_bpm[-(self.bpmBufferSize+1):-1]
+                self.plot_bpm()
+
         else:
             cv2.putText(frame, "Calculating BPM...", self.loadingTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
             bpm = 0
 
-
-        return frame, bpm
+        return frame
 
 
     def save_data(self, path):
