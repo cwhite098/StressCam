@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import pandas as pd
 
 class Heart_Rate_Monitor:
 
@@ -46,10 +47,11 @@ class Heart_Rate_Monitor:
         self.mask = (self.frequencies >= self.minFrequency) & (self.frequencies <= self.maxFrequency)
 
         # Heart Rate Calculation Variables
-        self.bpmCalculationFrequency = 15
+        self.bpmCalculationFrequency = 20
         self.bpmBufferIndex = 0
         self.bpmBufferSize = 10
         self.bpmBuffer = np.zeros((self.bpmBufferSize))
+        self.total_bpm = []
 
         # POS method variables
         self.project_mat = [[0, 1, -1],
@@ -144,6 +146,7 @@ class Heart_Rate_Monitor:
         C[:] = C[:] / meanC
         S = np.matmul(self.project_mat, C)
         self.bufferPOS.append(S)
+        self.totalPOS.append(S)
 
         if len(self.bufferPOS) > self.bufferSizePOS:
             self.i = self.i + 1
@@ -162,44 +165,13 @@ class Heart_Rate_Monitor:
                 bpm = 60.0 * hz
                 self.bpmBuffer[self.bpmBufferIndex] = bpm
                 self.bpmBufferIndex = (self.bpmBufferIndex + 1) % self.bpmBufferSize
-
-
+                self.total_bpm.append(bpm)
 
         # Take the fourier transform of the frames in the buffer
         fourierTransform = np.fft.fft(self.videoGauss, axis=0)
 
         # Bandpass Filter - using mask defined above
         fourierTransform[self.mask == False] = 0
-
-        '''
-        # Grab a Pulse
-        if self.bufferIndex % self.bpmCalculationFrequency == 0:
-            self.i = self.i + 1
-
-            # temporal normalisation for C
-            mean = C.mean(1)
-            C[:,0] = C[:,0] / mean
-            C[:,1] = C[:,1] / mean
-            C[:,2] = C[:,2] / mean
-
-            S = np.matmul(self.project_mat, np.transpose(C))
-
-            coeff = (np.std(S[0,:])/np.std(S[1,:]))
-            self.h = S[0,:] + (coeff*S[1,:])
-            self.h = self.h - np.mean(self.h)
-            self.POS_fourier = np.fft.fft(self.h)
-            self.POS_fourier[self.mask == False] = 0
-
-            for buf in range(self.bufferSize):
-                # Average the fourier transform for each frame
-                self.fourierTransformAvg[buf] = np.real(fourierTransform[buf]).mean()
-            # Get the max frequency
-            #hz = self.frequencies[np.argmax(self.fourierTransformAvg)]
-            hz = self.frequencies[np.argmax(self.POS_fourier)]
-            bpm = 60.0 * hz
-            self.bpmBuffer[self.bpmBufferIndex] = bpm
-            self.bpmBufferIndex = (self.bpmBufferIndex + 1) % self.bpmBufferSize
-            '''
 
         # Amplify
         # Inverse FT
@@ -238,3 +210,21 @@ class Heart_Rate_Monitor:
 
         return frame, bpm
 
+
+    def save_data(self, path):
+
+        # Get POS signal from S
+        signal = np.transpose(self.totalPOS)
+        coeff = (np.std(signal[0,:])/np.std(signal[1,:]))
+        POS_signal = signal[0,:] + (coeff*signal[1,:])
+        POS_signal = POS_signal - np.mean(POS_signal)
+
+        # Construct and save dataframe as csv
+        df1 = pd.DataFrame()
+        df2 = pd.DataFrame()
+        df1['BPM'] = self.total_bpm
+        df2['POS'] = POS_signal
+
+        new = pd.concat([df1, df2], axis=1) 
+
+        new.to_csv(path)
