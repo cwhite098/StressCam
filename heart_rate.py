@@ -86,8 +86,21 @@ class Heart_Rate_Monitor:
         self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
         self.background3 = self.fig.canvas.copy_from_bbox(self.ax3.bbox)
 
-        # Lists to store bpm data
+        # Lists to store bpm data and HRV data
         self.bpm_list = []
+        self.ibi_list = []
+        self.sdnn_list = []
+        self.sdsd_list = []
+        self.rmssd_list = []
+        self.pnn20_list = []
+        self.pnn50_list = []
+        self.hr_mad_list = []
+        self.sd1_list = []
+        self.sd2_list = []
+        self.s_list = []
+        self.sd1_sd2_list = []
+        self.BR_list = []
+
 
 
     # Helper Methods - modify these to get variable rect size
@@ -180,6 +193,18 @@ class Heart_Rate_Monitor:
                                                                 sample_rate=self.videoFrameRate, order=3, filtertype='bandpass')
                 workingdata, measures = hp.process(filtered_POS, sample_rate=self.videoFrameRate)
                 bpm_hp = measures['bpm']
+                self.ibi_list.append(measures['ibi'])
+                self.sdnn_list.append(measures['sdnn'])
+                self.sdsd_list.append(measures['sdsd'])
+                self.rmssd_list.append(measures['rmssd'])
+                self.pnn20_list.append(measures['pnn20'])
+                self.pnn50_list.append(measures['pnn50'])
+                self.hr_mad_list.append(measures['hr_mad'])
+                self.sd1_list.append(measures['sd1'])
+                self.sd2_list.append(measures['sd2'])
+                self.s_list.append(measures['s'])
+                self.sd1_sd2_list.append(measures['sd1/sd2'])
+                self.BR_list.append(measures['breathingrate'])
                 # get other measures here - breathing rate, HRV measures
 
                 self.total_bpm.append(bpm_hp)
@@ -238,6 +263,19 @@ class Heart_Rate_Monitor:
         df1 = pd.DataFrame()
         df2 = pd.DataFrame()
         df1['BPM'] = self.total_bpm
+        df1['ibi'] = self.ibi_list
+        df1['sdnn'] = self.sdnn_list 
+        df1['sdsd'] = self.sdsd_list 
+        df1['rmssd'] = self.rmssd_list 
+        df1['pnn20'] = self.pnn20_list 
+        df1['pnn50'] = self.pnn50_list 
+        df1['hr_mad'] = self.hr_mad_list 
+        df1['sd1'] = self.sd1_list 
+        df1['sd2'] = self.sd2_list 
+        df1['s'] = self.s_list 
+        df1['sd1/sd2'] = self.sd1_sd2_list 
+        df1['BR'] = self.BR_list
+
         df2['POS'] = POS_signal
 
         new = pd.concat([df1, df2], axis=1) 
