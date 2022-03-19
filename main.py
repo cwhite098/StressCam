@@ -1,4 +1,4 @@
-
+from blink_detection import Blink_Detector
 from heart_rate import Heart_Rate_Monitor
 from stroop import stroop_test
 import mediapipe as mp
@@ -7,7 +7,6 @@ import numpy as np
 from stroop import *
 import time
 from utils import get_hull
-
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -40,14 +39,13 @@ mouth_idx = [0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 14
 face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 110, 25, 226, 35, 143, 34,
 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109, 67, 103, 54, 21, 162]
 
-
 HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight)
+BD = Blink_Detector()
 # st = stroop_test()
 
 # init model
 with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 					refine_landmarks=True, min_detection_confidence=0.5) as face_detection: 
-
 
 	while True:
 
@@ -58,7 +56,6 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 		reye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
 		mouth_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
 		face_top_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
-
 
 		# Change the colours (not sure why)
 		#image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -77,7 +74,6 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 										landmark_drawing_spec=None,
 										connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
 				'''
-
 				total_landmarks = []
 				for lm in detection.landmark:
 					point = [lm.x*realWidth, lm.y*realHeight]
@@ -85,8 +81,10 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 				total_landmarks = np.array(total_landmarks, dtype=int)
 
 				total_face = np.array(get_hull(total_landmarks), dtype=int)
+
 				left_eye = np.array(get_hull(total_landmarks[leye_idx]), dtype=int)
 				right_eye = np.array(get_hull(total_landmarks[reye_idx]), dtype=int)
+
 				mouth = np.array(get_hull(total_landmarks[mouth_idx]), dtype=int)
 				top_face = np.array(get_hull(total_landmarks[face_top_idx]), dtype=int)
 				cv2.drawContours(face_mask, [total_face], -1, (255, 255, 255), -1, cv2.LINE_AA)
@@ -97,24 +95,24 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 
 				ROI_mask = face_mask - face_top_mask - mouth_mask
 
+				# Use the mask to get the coloured region of the original frame
 				ROI_colour = cv2.bitwise_and(image, image, mask = ROI_mask)
 
-
+				display_mask = ROI_mask + leye_mask + reye_mask
+				display_frame = cv2.bitwise_and(image, image, mask = display_mask)
 
 		frame = HRM.get_bpm(ROI_colour)
+		BD.get_area(left_eye, right_eye)
 		
-
 		# Finished processing, record frame time
 		new_frame_time = time.time()
 		fps = 1/(new_frame_time-prev_frame_time)
 		prev_frame_time = new_frame_time
 		print(int(fps))
 
-		#cv2.imshow('frame', image)
-		cv2.imshow('HRM frame', ROI_colour)
+		cv2.imshow('HRM frame', frame)
+		cv2.imshow('Display', display_frame)
 		
-
-
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
 

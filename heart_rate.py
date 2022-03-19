@@ -50,13 +50,6 @@ class Heart_Rate_Monitor:
 
         self.h = np.linspace(-1,1,150)
 
-        # Initialize Gaussian Pyramid
-        self.firstFrame = np.zeros((self.videoHeight, self.videoWidth, self.videoChannels))
-        self.firstGauss = self.buildGauss(self.firstFrame, self.levels+1)[self.levels]
-        # 4D array: time, video_x, video_y, RGB channels
-        self.videoGauss = np.zeros((self.bufferSize, self.firstGauss.shape[0], self.firstGauss.shape[1], self.videoChannels))
-        self.fourierTransformAvg = np.zeros((self.bufferSize))
-
         # Bandpass Filter for Specified Frequencies
         self.frequencies = np.linspace(0,4,self.bufferSizePOS)
         mask_freqs = np.linspace(0,4,self.bufferSize)
@@ -64,6 +57,7 @@ class Heart_Rate_Monitor:
 
         # Create figure with 2 plots
         self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=3 , ncols=1)
+        self.fig.suptitle('HEART RATE MONITOR')
         self.ax1 = self.axes[0]
         self.ax2 = self.axes[1]
         self.ax3 = self.axes[2]
