@@ -31,7 +31,7 @@ class Heart_Rate_Monitor:
         self.loadingTextLocation = (20, 30)
         self.bpmTextLocation = (self.videoWidth//2 + 5, 30)
         self.fontScale = 1
-        self.fontColor = (0,0,0)
+        self.fontColor = (255,255,255)
         self.lineType = 2
         self.boxColor = (0, 255, 0)
         self.boxWeight = 3
@@ -144,26 +144,25 @@ class Heart_Rate_Monitor:
         self.fig.canvas.blit(self.ax2.bbox)
         self.fig.canvas.blit(self.ax3.bbox)
 
-    def get_bpm(self, frame, start_tuple, rect_dims):
+    def get_bpm(self, frame):
 
-        # Positions the detection box (just where the data is collected from, doesn't move box in display)
-        detectionFrame = frame[start_tuple[0]:start_tuple[0]+self.videoHeight, start_tuple[1]:start_tuple[1]+self.videoWidth, :]
+        R = frame[:,:,0].flatten()
+        G = frame[:,:,1].flatten()
+        B = frame[:,:,2].flatten()
+        # Remove black areas and then get colour averages
+        R_mean = R[R!=0].mean()
+        G_mean = G[G!=0].mean()
+        B_mean = B[B!=0].mean()
 
-        # Construct Gaussian Pyramid
-        # add it to the videoGauss buffer
-        self.videoGauss[self.bufferIndex] = self.buildGauss(detectionFrame, self.levels+1)[self.levels]
-
-        # Get the average colour signals from buffer
-        C = self.videoGauss.mean((1,2))
-
-        # Get average skin-average RGB values from frame
-        C = detectionFrame.mean((0,1))
+        C = np.array([R_mean, G_mean, B_mean])
         meanC = C.mean()
         C[:] = C[:] / meanC
         S = np.matmul(self.project_mat, C)
         self.bufferPOS.append(S)
         # Add to list for data saving
         self.totalPOS.append(S)
+
+        filtered_POS = np.array([])
 
         # if the POS signal buffer is above the set threshold
         if len(self.bufferPOS) > self.bufferSizePOS:
@@ -205,41 +204,18 @@ class Heart_Rate_Monitor:
                 self.s_list.append(measures['s'])
                 self.sd1_sd2_list.append(measures['sd1/sd2'])
                 self.BR_list.append(measures['breathingrate'])
-                # get other measures here - breathing rate, HRV measures
 
                 self.total_bpm.append(bpm_hp)
-
-        # Take the fourier transform of the frames in the buffer
-        fourierTransform = np.fft.fft(self.videoGauss, axis=0)
-
-        # Bandpass Filter - using mask defined above
-        fourierTransform[self.mask == False] = 0
-
-        # Amplify
-        # Inverse FT
-        filtered = np.real(np.fft.ifft(fourierTransform, axis=0))
-        filtered = filtered * self.alpha # amplify by a factor of alpha
-
-        # Reconstruct Resulting detection Frame
-        filteredFrame = self.reconstructFrame(filtered, self.bufferIndex, self.levels)
-        outputFrame = detectionFrame + filteredFrame
-        outputFrame = cv2.convertScaleAbs(outputFrame)
-
-        self.bufferIndex = (self.bufferIndex + 1) % self.bufferSize
-
-        # Set the detection region in total frame to the output of the fourier stuff
-        frame[start_tuple[0]:start_tuple[0]+self.videoHeight, start_tuple[1]:start_tuple[1]+self.videoWidth, :] = outputFrame
-        
-        # Displays the rectangle
-        cv2.rectangle(frame, (start_tuple[1], start_tuple[0]), (start_tuple[1]+self.videoWidth, start_tuple[0]+self.videoHeight),
-                                self.boxColor, self.boxWeight)
 
         # Displays the text if first bpm calc has been done
         if self.total_bpm:
             # takes last calculated bpm value (every 20 frames (1 second))
-            cv2.putText(frame, "BPM: %d" % self.total_bpm[-1], self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
-            
-            # Get BPM subset and update plots
+            try:
+                cv2.putText(frame, "BPM: %d" % self.total_bpm[-1], self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
+            except ValueError:
+                cv2.putText(frame, "BPM: %d" % 0, self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
+
+            # Get BPM subset and update plot
             if len(self.total_bpm) > self.bpmBufferSize:
                 self.bpm_list = self.total_bpm[-(self.bpmBufferSize+1):-1]
                 self.plot_bpm()
@@ -247,6 +223,7 @@ class Heart_Rate_Monitor:
         else:
             cv2.putText(frame, "Calculating BPM...", self.loadingTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
             bpm = 0
+
 
         return frame
 
