@@ -95,14 +95,15 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 
 				ROI_mask = face_mask - face_top_mask - mouth_mask
 
-				# Use the mask to get the coloured region of the original frame
+				# Use the mask to get the coloured region of the original frame for HRM
 				ROI_colour = cv2.bitwise_and(image, image, mask = ROI_mask)
 
+				# Add the eyes to the display
 				display_mask = ROI_mask + leye_mask + reye_mask
 				display_frame = cv2.bitwise_and(image, image, mask = display_mask)
 
 		frame = HRM.get_bpm(ROI_colour)
-		BD.get_area(left_eye, right_eye)
+		BD.get_ratio(total_landmarks)
 		
 		# Finished processing, record frame time
 		new_frame_time = time.time()
@@ -115,6 +116,8 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 		
 		if cv2.waitKey(1) & 0xFF == ord('q'):
 			break
+
+print('Detected Blinks: ', BD.blink_counter)
 
 cap.release()
 cv2.destroyAllWindows()

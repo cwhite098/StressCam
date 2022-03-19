@@ -12,7 +12,8 @@ def get_dist(total_landmarks, idx):
 
 class Blink_Detector:
     def __init__(self):
-        self.threshold = 10
+        # Threshold for the ratio
+        self.threshold = 3
 
         # Counter for number of blinks and total number of frames
         self.blink_counter = 0
@@ -29,6 +30,7 @@ class Blink_Detector:
         self.axes.set_ylim([1,5]), self.axes.set_xlabel('Time'), self.axes.set_ylabel('Area')
         self.axes.set_title('Eye Area')
         self.line = self.axes.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+        self.line2 = self.axes.axhline(self.threshold, linestyle='--', c='r')
         self.fig.show()
         self.fig.canvas.draw()
         self.background1 = self.fig.canvas.copy_from_bbox(self.axes.bbox)
@@ -56,6 +58,11 @@ class Blink_Detector:
 
         if len(self.ratios_list) > self.plotting_xdim:
             self.update_plot()
+
+        # If threshold exceeded, record blink
+        if ratio > self.threshold:
+            self.blink_counter += 1
+            self.blink_frames_list.append(self.frame_counter)
 
         self.frame_counter += 1
 
