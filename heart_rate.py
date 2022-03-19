@@ -184,22 +184,25 @@ class Heart_Rate_Monitor:
 
                 filtered_POS = hp.filtering.filter_signal(signal2, cutoff=(self.minFrequency, self.maxFrequency),
                                                                 sample_rate=self.videoFrameRate, order=3, filtertype='bandpass')
-                workingdata, measures = hp.process(filtered_POS, sample_rate=self.videoFrameRate)
-                bpm_hp = measures['bpm']
-                self.ibi_list.append(measures['ibi'])
-                self.sdnn_list.append(measures['sdnn'])
-                self.sdsd_list.append(measures['sdsd'])
-                self.rmssd_list.append(measures['rmssd'])
-                self.pnn20_list.append(measures['pnn20'])
-                self.pnn50_list.append(measures['pnn50'])
-                self.hr_mad_list.append(measures['hr_mad'])
-                self.sd1_list.append(measures['sd1'])
-                self.sd2_list.append(measures['sd2'])
-                self.s_list.append(measures['s'])
-                self.sd1_sd2_list.append(measures['sd1/sd2'])
-                self.BR_list.append(measures['breathingrate'])
+                try:
+                    workingdata, measures = hp.process(filtered_POS, sample_rate=self.videoFrameRate)
+                    bpm_hp = measures['bpm']
+                    self.ibi_list.append(measures['ibi'])
+                    self.sdnn_list.append(measures['sdnn'])
+                    self.sdsd_list.append(measures['sdsd'])
+                    self.rmssd_list.append(measures['rmssd'])
+                    self.pnn20_list.append(measures['pnn20'])
+                    self.pnn50_list.append(measures['pnn50'])
+                    self.hr_mad_list.append(measures['hr_mad'])
+                    self.sd1_list.append(measures['sd1'])
+                    self.sd2_list.append(measures['sd2'])
+                    self.s_list.append(measures['s'])
+                    self.sd1_sd2_list.append(measures['sd1/sd2'])
+                    self.BR_list.append(measures['breathingrate'])
 
-                self.total_bpm.append(bpm_hp)
+                    self.total_bpm.append(bpm_hp)
+                except hp.exceptions.BadSignalWarning:
+                    print('Bad signal, skipping frame...')
 
         # Displays the text if first bpm calc has been done
         if self.total_bpm:
@@ -216,8 +219,6 @@ class Heart_Rate_Monitor:
 
         else:
             cv2.putText(frame, "Calculating BPM...", self.loadingTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
-            bpm = 0
-
 
         return frame
 
