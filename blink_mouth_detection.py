@@ -10,7 +10,7 @@ def get_dist(total_landmarks, idx):
     dist = np.linalg.norm(poi[0]-poi[1])
     return dist
 
-class Blink_Detector:
+class Blink_Mouth_Detector:
     def __init__(self):
         # Threshold for the ratio
         self.threshold = 3
@@ -24,23 +24,35 @@ class Blink_Detector:
         self.ratios_list = []
         self.plotting_xdim = 100
 
+        self.mouth_ratios_list = []
+
         # init plot
-        self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=1, ncols=1)
-        self.fig.suptitle('BLINK DETECTOR')
-        self.axes.set_ylim([1,5]), self.axes.set_xlabel('Time'), self.axes.set_ylabel('Area')
-        self.axes.set_title('Eye Area')
-        self.line = self.axes.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
-        self.line2 = self.axes.axhline(self.threshold, linestyle='--', c='r')
+        self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=2, ncols=1)
+        self.fig.suptitle('BLINK and MOUTH MONITORING')
+        # Set up eye ratio tracking plot
+        self.ax1 = self.axes[0]
+        self.ax1.set_ylim([1,5]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Area')
+        self.ax1.set_title('Eye Area')
+        self.line = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+        self.line2 = self.ax1.axhline(self.threshold, linestyle='--', c='r')
+        # Set up mouth ration tracking plot
+        self.ax2 = self.axes[1]
+        self.ax2.set_ylim([0,4]), self.ax2.set_xlabel('Time'), self.ax2.set_ylabel('Area')
+        self.ax2.set_title('Mouth Area')
+        self.mouth_line = self.ax2.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+
         self.fig.show()
         self.fig.canvas.draw()
-        self.background1 = self.fig.canvas.copy_from_bbox(self.axes.bbox)
+        self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
+        self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
 
         # Points in mesh for horizontal and vertical extents of the eyes
         self.l_eye_vert = [159, 145]
         self.l_eye_hor = [39, 13]
         self.r_eye_vert = [384, 374]
         self.r_eye_hor = [263, 362]
-
+        self.mouth_vert = [17,0]
+        self.mouth_hor = [61, 291]
 
     def get_ratio(self, total_landmarks):
         # Get the areas of both eyes and combine
@@ -52,6 +64,11 @@ class Blink_Detector:
         l_vert = get_dist(total_landmarks, self.l_eye_vert)
         l_hor = get_dist(total_landmarks, self.l_eye_hor)
         l_ratio = l_hor/l_vert
+
+        mouth_vert = get_dist(total_landmarks, self.mouth_vert)
+        mouth_hor = get_dist(total_landmarks, self.mouth_hor)
+        mouth_ratio = mouth_hor/mouth_vert
+        self.mouth_ratios_list.append(mouth_ratio)
 
         ratio = (l_ratio + r_ratio)/2
         self.ratios_list.append(ratio)
@@ -69,9 +86,16 @@ class Blink_Detector:
     def update_plot(self):
         # Update the plot showing the eye area
         self.fig.canvas.restore_region(self.background1)
+        self.fig.canvas.restore_region(self.background2)
+
         self.line.set_ydata(self.ratios_list[-(self.plotting_xdim+1):-1])  
-        self.axes.draw_artist(self.line) 
-        self.fig.canvas.blit(self.axes.bbox)
+        self.mouth_line.set_ydata(self.mouth_ratios_list[-(self.plotting_xdim+1):-1])
+
+        self.ax1.draw_artist(self.line) 
+        self.ax2.draw_artist(self.mouth_line) 
+
+        self.fig.canvas.blit(self.ax1.bbox)
+        self.fig.canvas.blit(self.ax2.bbox)
 
 
 
