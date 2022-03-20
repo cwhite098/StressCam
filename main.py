@@ -1,4 +1,4 @@
-from blink_detection import Blink_Detector
+from blink_mouth_detection import Eyes_Mouth_Detector
 from heart_rate import Heart_Rate_Monitor
 from stroop import stroop_test
 import mediapipe as mp
@@ -40,7 +40,7 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109, 67, 103, 54, 21, 162]
 
 HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight)
-BD = Blink_Detector()
+BD = Eyes_Mouth_Detector()
 # st = stroop_test()
 
 # init model
@@ -57,12 +57,11 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 		mouth_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
 		face_top_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
 
-		# Change the colours (not sure why)
-		#image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-		image.flags.writeable = True
-
+		# set to false before processing - apparently increases performance
+		image.flags.writeable = False
 		# Detect the face
 		results = face_detection.process(image)
+		image.flags.writeable = True
 
 		if results.multi_face_landmarks:
 			for detection in results.multi_face_landmarks:
@@ -99,7 +98,8 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 				ROI_colour = cv2.bitwise_and(image, image, mask = ROI_mask)
 
 				# Add the eyes to the display
-				display_mask = ROI_mask + leye_mask + reye_mask
+				#display_mask = ROI_mask + leye_mask + reye_mask
+				display_mask = face_mask
 				display_frame = cv2.bitwise_and(image, image, mask = display_mask)
 
 		frame = HRM.get_bpm(ROI_colour)

@@ -208,7 +208,7 @@ class Heart_Rate_Monitor:
         if self.total_bpm:
             # takes last calculated bpm value (every 20 frames (1 second))
             try:
-                cv2.putText(frame, "BPM: %d" % self.total_bpm[-1], self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
+                cv2.putText(frame, "BPM: %d" % np.mean(self.total_bpm[-10:-1]), self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
             except ValueError:
                 cv2.putText(frame, "BPM: %d" % 0, self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
 
