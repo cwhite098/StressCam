@@ -76,7 +76,6 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 		image.flags.writeable = True
 
 		if results.multi_face_landmarks:
-			geo = mp.FaceGeometryFromLandmarks(results.multi_face_landmarks)
 			for detection in results.multi_face_landmarks:
 				
 				# Draws the mesh over the face
