@@ -1,7 +1,6 @@
 # import the necessary packages
 from scipy.spatial import ConvexHull
 import numpy as np
-import cv2
 
 
 def get_hull(pts):

@@ -1,5 +1,6 @@
 from blink_mouth_detection import Eyes_Mouth_Detector
 from heart_rate import Heart_Rate_Monitor
+from head_tracker import Head_Tracker
 from stroop import stroop_test
 import mediapipe as mp
 import cv2
@@ -12,6 +13,7 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_face = mp.solutions.face_detection
 mp_face_mesh = mp.solutions.face_mesh
+
 
 fps=15
 cap = cv2.VideoCapture()
@@ -41,6 +43,7 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
 
 HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight)
 BD = Eyes_Mouth_Detector()
+HT = Head_Tracker(realWidth, realHeight)
 # st = stroop_test()
 
 # init model
@@ -64,6 +67,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 		image.flags.writeable = True
 
 		if results.multi_face_landmarks:
+			geo = mp.FaceGeometryFromLandmarks(results.multi_face_landmarks)
 			for detection in results.multi_face_landmarks:
 				
 				# Draws the mesh over the face
@@ -73,11 +77,15 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 										landmark_drawing_spec=None,
 										connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
 				'''
+				# Extract the landmarks from the mesh and get the coords
 				total_landmarks = []
+				total_landmarks_3d = []
 				for lm in detection.landmark:
 					point = [lm.x*realWidth, lm.y*realHeight]
 					total_landmarks.append(point)
+					total_landmarks_3d.append([lm.x*realWidth, lm.y*realHeight, lm.z*3000])
 				total_landmarks = np.array(total_landmarks, dtype=int)
+				total_landmarks_3d = np.array(total_landmarks_3d, dtype=np.float64)
 
 				total_face = np.array(get_hull(total_landmarks), dtype=int)
 
@@ -104,6 +112,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 
 		frame = HRM.get_bpm(ROI_colour)
 		BD.get_ratio(total_landmarks)
+		display_frame = HT.get_angular_position(total_landmarks_3d, display_frame)
 		
 		# Finished processing, record frame time
 		new_frame_time = time.time()

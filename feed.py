@@ -4,6 +4,7 @@ import mediapipe as mp
 mp_drawing = mp.solutions.drawing_utils
 mp_holistic = mp.solutions.holistic
 
+
 cap = cv2.VideoCapture()
 # The device number might be 0 or 1 depending on the device and the webcam
 cap.open(0, cv2.CAP_DSHOW)
