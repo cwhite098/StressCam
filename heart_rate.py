@@ -95,27 +95,6 @@ class Heart_Rate_Monitor:
         self.sd1_sd2_list = []
         self.BR_list = []
 
-
-
-    # Helper Methods - modify these to get variable rect size
-    def buildGauss(self, frame, levels):
-        pyramid = [frame]
-        for level in range(levels):
-            # Downsamples the fram using a Gaussian pyramid
-            # https://docs.opencv.org/3.4/d4/d1f/tutorial_pyramids.html
-            frame = cv2.pyrDown(frame)
-            pyramid.append(frame)
-        return pyramid
-
-    def reconstructFrame(self, pyramid, index, levels):
-        # Reconstruct the green box to be put in the total frame
-        filteredFrame = pyramid[index]
-        for level in range(levels):
-            # Up sample using Laplacian pyramid
-            filteredFrame = cv2.pyrUp(filteredFrame)
-        filteredFrame = filteredFrame[:self.videoHeight, :self.videoWidth]
-        return filteredFrame
-
     def plot_bpm(self):
         
         self.fig.canvas.restore_region(self.background1)
