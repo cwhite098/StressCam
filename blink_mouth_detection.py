@@ -54,7 +54,7 @@ class Eyes_Mouth_Detector:
         self.mouth_line = self.ax2.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
         # Set up eyebrow ration tracking plot
         self.ax3 = self.axes[2]
-        self.ax3.set_ylim([0,0.5]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('Eyebrow Ratio')
+        self.ax3.set_ylim([0.05,0.3]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('Eyebrow Ratio')
         self.ax3.set_title('Eyebrow Ratio')
         self.leyebrow_line = self.ax3.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
         self.reyebrow_line = self.ax3.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]

@@ -1,13 +1,14 @@
 from blink_mouth_detection import Eyes_Mouth_Detector
 from heart_rate import Heart_Rate_Monitor
 from head_tracker import Head_Tracker
+from eye_tracking import EyeTracker
 from stroop import stroop_test
 import mediapipe as mp
 import cv2
 import numpy as np
 from stroop import *
 import time
-from utils import get_hull
+from utils import get_hull, nothing
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -27,8 +28,10 @@ realHeight = 480
 boxWidth = 50
 boxHeight = 60
 
-cap.set(3, realWidth);
-cap.set(4, realHeight);
+cap.set(3, realWidth)
+cap.set(4, realHeight)
+
+
 
 # Record frame times for fps counter
 prev_frame_time = 0
@@ -44,7 +47,13 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
 HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight)
 BD = Eyes_Mouth_Detector()
 HT = Head_Tracker(realWidth, realHeight)
+ET = EyeTracker()
+cv2.namedWindow('eye_tracking')
+cv2.createTrackbar('threshold', 'eye_tracking', 0, 255, nothing)
 # st = stroop_test()
+
+
+
 
 # init model
 with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
@@ -110,16 +119,23 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 				display_mask = face_mask
 				display_frame = cv2.bitwise_and(image, image, mask = display_mask)
 
+
 		frame = HRM.get_bpm(ROI_colour)
 		BD.get_ratio(total_landmarks)
 		display_frame = HT.get_angular_position(total_landmarks_3d, display_frame)
 		
+		threshold = cv2.getTrackbarPos('threshold', 'eye_tracking')
+		eye_frame = ET.track_eyes(image, [leye_mask, reye_mask], [left_eye, right_eye], threshold)
+
+
 		# Finished processing, record frame time
 		new_frame_time = time.time()
 		fps = 1/(new_frame_time-prev_frame_time)
 		prev_frame_time = new_frame_time
-		print(int(fps))
+		#print(int(fps))
 
+
+		cv2.imshow('eye_tracking', eye_frame)
 		cv2.imshow('HRM frame', frame)
 		cv2.imshow('Display', display_frame)
 		

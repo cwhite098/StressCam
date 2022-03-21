@@ -2,6 +2,8 @@
 from scipy.spatial import ConvexHull
 import numpy as np
 
+def nothing(x):
+    pass
 
 def get_hull(pts):
     # Function that gets the hull (outline) of a set of points
