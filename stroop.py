@@ -42,7 +42,7 @@ class stroop_test:
                 self.attempts += 1
             else:
                 self.attempts += 1
-                self.image = Label(self.root, image=self.img, width =8000, height=2000)
+                self.image = Label(self.root, image=self.img, width =800, height=500)
                 self.image.place(relx=0.5, rely=0.5, anchor='center')
         self.score_label.config(text =f'Score: {self.score} / {self.attempts}')
         self.score_label.update()
