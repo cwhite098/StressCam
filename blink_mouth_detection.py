@@ -20,7 +20,9 @@ def get_avg_position(total_landmarks, idx):
 
 
 class Eyes_Mouth_Detector:
-    def __init__(self):
+    def __init__(self, show_plots=True):
+        self.show_plots = show_plots
+
         # Threshold for the ratio
         self.threshold = 3
 
@@ -38,32 +40,33 @@ class Eyes_Mouth_Detector:
         self.l_eyebrow_ratio_list = []
         self.r_eyebrow_ratio_list = []
 
-        # init plot
-        self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=3, ncols=1)
-        self.fig.suptitle('EYE(BROW)S and MOUTH MONITORING')
-        # Set up eye ratio tracking plot
-        self.ax1 = self.axes[0]
-        self.ax1.set_ylim([1,5]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Eye Ratio')
-        self.ax1.set_title('Eye Ratio')
-        self.line = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
-        self.line2 = self.ax1.axhline(self.threshold, linestyle='--', c='r')
-        # Set up mouth ratio tracking plot
-        self.ax2 = self.axes[1]
-        self.ax2.set_ylim([0,4]), self.ax2.set_xlabel('Time'), self.ax2.set_ylabel('Mouth Ratio')
-        self.ax2.set_title('Mouth Ratio')
-        self.mouth_line = self.ax2.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
-        # Set up eyebrow ration tracking plot
-        self.ax3 = self.axes[2]
-        self.ax3.set_ylim([0.05,0.3]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('Eyebrow Ratio')
-        self.ax3.set_title('Eyebrow Ratio')
-        self.leyebrow_line = self.ax3.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
-        self.reyebrow_line = self.ax3.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+        if self.show_plots:
+            # init plot
+            self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=3, ncols=1)
+            self.fig.suptitle('EYE(BROW)S and MOUTH MONITORING')
+            # Set up eye ratio tracking plot
+            self.ax1 = self.axes[0]
+            self.ax1.set_ylim([1,5]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Eye Ratio')
+            self.ax1.set_title('Eye Ratio')
+            self.line = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+            self.line2 = self.ax1.axhline(self.threshold, linestyle='--', c='r')
+            # Set up mouth ratio tracking plot
+            self.ax2 = self.axes[1]
+            self.ax2.set_ylim([0,4]), self.ax2.set_xlabel('Time'), self.ax2.set_ylabel('Mouth Ratio')
+            self.ax2.set_title('Mouth Ratio')
+            self.mouth_line = self.ax2.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+            # Set up eyebrow ration tracking plot
+            self.ax3 = self.axes[2]
+            self.ax3.set_ylim([0.05,0.3]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('Eyebrow Ratio')
+            self.ax3.set_title('Eyebrow Ratio')
+            self.leyebrow_line = self.ax3.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
+            self.reyebrow_line = self.ax3.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), animated=True)[0]
 
-        self.fig.show()
-        self.fig.canvas.draw()
-        self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
-        self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
-        self.background3 = self.fig.canvas.copy_from_bbox(self.ax3.bbox)
+            self.fig.show()
+            self.fig.canvas.draw()
+            self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
+            self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
+            self.background3 = self.fig.canvas.copy_from_bbox(self.ax3.bbox)
 
         # Points in mesh for horizontal and vertical extents of the eyes
         self.l_eye_vert = [159, 145]
@@ -118,7 +121,7 @@ class Eyes_Mouth_Detector:
         self.r_eyebrow_ratio_list.append(r_eyebrow_ratio)
 
         # Update plots if enough data has been collected
-        if len(self.ratios_list) > self.plotting_xdim:
+        if len(self.ratios_list) > self.plotting_xdim and self.show_plots:
             self.update_plot()
 
         # If threshold exceeded, record blink

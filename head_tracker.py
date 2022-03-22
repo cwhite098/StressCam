@@ -5,7 +5,9 @@ import cv2
 
 class Head_Tracker:
 
-    def __init__(self, image_width, image_height):
+    def __init__(self, image_width, image_height, show_plots = True):
+        
+        self.show_plots = show_plots
 
         self.image_width = image_width
         self.image_height = image_height
@@ -30,20 +32,21 @@ class Head_Tracker:
 
         self.plotting_xdim = 10
 
-        # init plot
-        self.fig, self.ax1 = plt.subplots(constrained_layout = True, nrows=1, ncols=1)
-        self.fig.suptitle('HEAD TRACKER')
-        # Set up eye ratio tracking plot
-        self.ax1.set_ylim([-180,180]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Angle')
-        self.ax1.set_title('XYZ of Head')
-        self.line1 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='r', label='x', animated=True)[0]
-        self.line2 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='g', label='y', animated=True)[0]
-        self.line3 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='b', label='z', animated=True)[0]
-        self.ax1.legend()
+        if self.show_plots:
+            # init plot
+            self.fig, self.ax1 = plt.subplots(constrained_layout = True, nrows=1, ncols=1)
+            self.fig.suptitle('HEAD TRACKER')
+            # Set up eye ratio tracking plot
+            self.ax1.set_ylim([-180,180]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Angle')
+            self.ax1.set_title('XYZ of Head')
+            self.line1 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='r', label='x', animated=True)[0]
+            self.line2 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='g', label='y', animated=True)[0]
+            self.line3 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='b', label='z', animated=True)[0]
+            self.ax1.legend()
 
-        self.fig.show()
-        self.fig.canvas.draw()
-        self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
+            self.fig.show()
+            self.fig.canvas.draw()
+            self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
 
     def update_plots(self):
 
@@ -99,7 +102,7 @@ class Head_Tracker:
         
         cv2.line(image, p1, p2, (255, 0, 0), 3)
 
-        if len(self.x_list) > self.plotting_xdim:
+        if len(self.x_list) > self.plotting_xdim and self.show_plots:
             self.update_plots()
 
         return image
