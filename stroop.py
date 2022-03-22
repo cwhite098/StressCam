@@ -1,9 +1,6 @@
 from tkinter import *
 import random
 from time import perf_counter, sleep
-from threading import Timer, Thread
-from PIL import ImageTk, Image
-from icecream import ic
 
 class stroop_test:
 
@@ -21,6 +18,10 @@ class stroop_test:
         self.label.pack()
         self.img = PhotoImage(file='big-red-cross.png')
         self.image = Label(self.root, image=self.img, width =8000, height=2000)
+        self.score_label = Label(self.root, text=f'Score: {self.score} / {self.attempts}',
+                                 font=("Comic Sans MS", 50), width =12, height=1)
+        self.score_label.place(relx = 0.6, rely = 0)
+        self.start = True
 
     def stimulus(self):
         self.times_pressed = 0
@@ -43,6 +44,8 @@ class stroop_test:
                 self.attempts += 1
                 self.image = Label(self.root, image=self.img, width =8000, height=2000)
                 self.image.place(relx=0.5, rely=0.5, anchor='center')
+        self.score_label.config(text =f'Score: {self.score} / {self.attempts}')
+        self.score_label.update()
 
         print(self.colours[self.colour], event.char)
         print(f'Score:{self.score}/{self.attempts}')
@@ -50,10 +53,15 @@ class stroop_test:
     def new_question(self):
         if self.image.winfo_exists():
             self.image.destroy()
+        if self.times_pressed == 0:
+            if not self.start:
+                self.attempts += 1
+            self.score_label.config(text =f'Score: {self.score} / {self.attempts}')
+            self.score_label.update()
+        self.start = False
         self.word, self.colour = self.stimulus()
         self.label.config(text=self.word, fg=self.colour)
         self.label.update()
-
         self.root.after((self.timeout)*1000, self.new_question)
 
     def quit_selected(self):
