@@ -1,68 +1,92 @@
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt
-
 
 class EyeTracker:
     def __init__(self):
-        self.leye_idx = [33, 246, 161, 160, 159, 158, 157, 173, 133, 155, 154, 153, 145, 144, 163, 7]
-        self.reye_idx = [263, 249, 390, 373, 374, 380, 381, 382, 362, 398, 384, 385, 386, 387, 388, 466]
 
-        self.l_eye_vert = [159, 145]
-        self.l_eye_hor = [39, 13]
-        self.r_eye_vert = [384, 374]
-        self.r_eye_hor = [263, 362]
+        # PARAMETERS FOR OLDER MODEL
 
-        self.fig, self.axes = plt.subplots(constrained_layout=True, nrows=2, ncols=1)
-        self.ax1 = self.axes[0]
-        self.ax2 = self.axes[1]
+        # detector_params = cv2.SimpleBlobDetector_Params()
+        # detector_params.filterByArea = True
+        # detector_params.maxArea = 600
+        # detector_params.minArea = 100
+        #
+        # # Filter by Circularity
+        # detector_params.filterByCircularity = True
+        # detector_params.minCircularity = 0.4
+        #
+        # # Filter by Convexity
+        # detector_params.filterByConvexity = True
+        # detector_params.minConvexity = 0.5
+        # # Filter by Inertia
+        # detector_params.filterByInertia = True
+        # detector_params.minInertiaRatio = 0.1
+        #
+        # self.detector = cv2.SimpleBlobDetector_create(detector_params)
 
-        detector_params = cv2.SimpleBlobDetector_Params()
-        detector_params.filterByArea = True
-        detector_params.maxArea = 1500
-        detector_params.minArea= 100
+        self.saved_prev = None
+        self.timer = 0
 
-        self.detector = cv2.SimpleBlobDetector_create(detector_params)
+    def track_eyes(self, image, eyes):
+        """
+        Calculates the position of the eyes using simple image processing
+        TODO: MAKE THE PARAMS PROPORTIONAL TO IMAGE SIZE
+        :param image: Frame
+        :param eyes: Eye mask coordinates
+        :return: Frame with the circles plotted (will change this to the circles of the image)
+        """
 
-        self.threshold = 90
+        for eye in eyes:
+            x_min, y_min, x_max, y_max = min(eye[:, 0]), min(eye[:, 1]), max(eye[:, 0]), max(eye[:, 1])
 
+            # Get bounding box around the eye
+            # hard coded added extra bits (improves performance)
 
-    def track_eyes(self, image, masks, eyes, threshold):
+            eye_box = image[y_min - 15:y_max + 15, x_min - 15:x_max + 15]
+            # eye_box = image[y_min:y_max, x_min:x_max]
 
-        self.threshold = threshold
+            # Make image grayscale
+            grey_eye_box = cv2.cvtColor(eye_box, cv2.COLOR_BGR2GRAY)
 
+            # Find the circles, using Hough Transform. May have to adapt these params
+            circ = cv2.HoughCircles(grey_eye_box, cv2.HOUGH_GRADIENT, 1, 20,
+                                    param1=160, param2=25, minRadius=1, maxRadius=15)
 
-        l, r = eyes
-        l_x_min, l_y_min, l_x_max, l_y_max = min(l[:, 0]), min(l[:, 1]), max(l[:, 0]), max(l[:, 1])
-        r_x_min, r_y_min, r_x_max, r_y_max = min(r[:, 0]), min(r[:, 1]), max(r[:, 0]), max(r[:, 1])
+            # Uses the previously found position up to 20 frames ago (~1 second memory)
+            if circ is None:
+                if self.timer < 20:
+                    circ = self.saved_prev
+                self.timer += 1
+            else:
+                self.saved_prev = circ
+                self.timer = 0
+            try:
+                circles = np.uint16(np.around(circ))
+                for i in circles[0, :]:
+                    # draw the outer circle
+                    cv2.circle(image, (i[0] + x_min - 15, i[1] + y_min - 15), i[2], (0, 255, 0), 2)
+                    # draw the center of the circle
+                    cv2.circle(image, (i[0] + x_min - 15, i[1] + y_min - 15), 2, (0, 0, 255), 3)
+            except:
+                pass
 
-        l_mask, r_mask = masks
+            # ================= Find the keys using blob detection points (OLD, DIDN'T REALLY WORK) ==================
+            #
+            # blur = cv2.medianBlur(grey_eye_box, 3)
+            # _, p_image = cv2.threshold(blur, self.threshold, 255, cv2.THRESH_BINARY)
+            # ret3, p_image = cv2.threshold(grey_eye_box, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            #
+            # p_image = cv2.erode(p_image, None, iterations=1)  # 1
+            #
+            # p_image = cv2.dilate(p_image, None, iterations=2)  # 2
+            #
+            # p_image = cv2.medianBlur(p_image, 5)  # 3
+            # grey_eye_box = cv2.cvtColor(grey_eye_box, cv2.COLOR_GRAY2RGB)
+            #
+            # p_image = cv2.drawKeypoints(grey_eye_box, keypoints, grey_eye_box, (0, 0, 255),
+            #                             cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+            # keypoints = self.detector.detect(p_image)
+            #
+            # ========================================================================================================
 
-        # Get bounding box of the left eye in the image
-        l_sub = image[l_y_min-15:l_y_max+15,l_x_min-15:l_x_max+15]
-        l_image_box = cv2.cvtColor(l_sub, cv2.COLOR_BGR2GRAY)
-
-
-
-        _, l_image = cv2.threshold(l_image_box, self.threshold, 255, cv2.THRESH_BINARY)
-        l_image = cv2.erode(l_image, None, iterations=2)  # 1
-        l_image = cv2.dilate(l_image, None, iterations=4)  # 2
-        l_image = cv2.medianBlur(l_image, 9)  # 3Q
-
-        keypoints = self.detector.detect(l_image)
-        cv2.imshow('r_eye', l_image)
-        l_image = cv2.drawKeypoints(l_image_box, keypoints, l_image_box, (0, 0, 255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-
-        # Get bounding box of right eye in the image
-        r_sub = image[r_y_min-5:r_y_max+5, r_x_min:r_x_max]
-        r_image = cv2.cvtColor(r_sub, cv2.COLOR_BGR2GRAY)
-
-        lx, ly, c = l_image.shape
-        resized_image = cv2.resize(l_image, (ly*6,lx*6))
-        #cv2.imshow('eye_tracking', image)
-
-
-
-        eye_frame = cv2.bitwise_and(image, image, mask=(l_mask + r_mask))
-        return resized_image
-        # cv2.imshow('eye', gray_frame)
+        return image
