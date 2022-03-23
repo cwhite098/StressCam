@@ -18,6 +18,9 @@ class Head_Tracker:
         self.y_list = []
         self.z_list = []
 
+        self.prev_nose_2d = False
+        self.translation_list = []
+
         self.face_2d = []
         self.face_3d = []
 
@@ -34,49 +37,78 @@ class Head_Tracker:
 
         if self.show_plots:
             # init plot
-            self.fig, self.ax1 = plt.subplots(constrained_layout = True, nrows=1, ncols=1)
+            self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=2, ncols=1)
             self.fig.suptitle('HEAD TRACKER')
             # Set up eye ratio tracking plot
-            self.ax1.set_ylim([-180,180]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Angle')
-            self.ax1.set_title('XYZ of Head')
-            self.line1 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='r', label='x', animated=True)[0]
-            self.line2 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='g', label='y', animated=True)[0]
-            self.line3 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='b', label='z', animated=True)[0]
+            self.ax1 = self.axes[0]
+            self.ax1.set_ylim([-30,30]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('Angle')
+            self.ax1.set_title('Pitch/Yaw of Head')
+            self.line1 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='r', label='Pitch', animated=True)[0]
+            self.line2 = self.ax1.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim), c='g', label='Yaw', animated=True)[0]
             self.ax1.legend()
+
+            self.ax2 = self.axes[1]
+            self.ax2.set_ylim([0,50]), self.ax2.set_xlabel('Time'), self.ax2.set_ylabel('Angle')
+            self.ax2.set_title('Inter-Frame-Translation')
+            self.line3 = self.ax2.plot(np.linspace(0,self.plotting_xdim,self.plotting_xdim),np.zeros(self.plotting_xdim),animated=True)[0]
 
             self.fig.show()
             self.fig.canvas.draw()
             self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
+            self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
 
     def update_plots(self):
 
         self.fig.canvas.restore_region(self.background1)
+        self.fig.canvas.restore_region(self.background2)
         self.line1.set_ydata(self.x_list[-(self.plotting_xdim+1):-1])
         self.line2.set_ydata(self.y_list[-(self.plotting_xdim+1):-1])
-        self.line3.set_ydata(self.z_list[-(self.plotting_xdim+1):-1])
+        self.line3.set_ydata(self.translation_list[-(self.plotting_xdim+1):-1])
 
         self.ax1.draw_artist(self.line1)
         self.ax1.draw_artist(self.line2)
-        self.ax1.draw_artist(self.line3)
+        self.ax2.draw_artist(self.line3)
 
         self.fig.canvas.blit(self.ax1.bbox)
+        self.fig.canvas.blit(self.ax2.bbox)
 
 
 
 
-    def get_angular_position(self, total_landmarks_3d, image):
+    def get_angular_position(self, landmarks, image):
         
-        points_of_interest = total_landmarks_3d[self.idx]
+        self.face_3d = []
+        self.face_2d = []
 
-        # Get nose coords
-        nose_2d = points_of_interest[0, :2]
-        nose_3d = points_of_interest[0,:]
+        for idx, lm in enumerate(landmarks):
+            if idx == 33 or idx == 263 or idx == 1 or idx == 61 or idx == 291 or idx == 199:
+                if idx == 1:
+                    nose_2d = (lm.x * self.image_width, lm.y * self.image_height)
+                    nose_3d = (lm.x * self.image_width, lm.y * self.image_height, lm.z * 3000)
 
-        # Get np arrays of 2d and 3d points
-        self.face_2d = np.array(points_of_interest[:,:2], dtype=np.float64)
-        # Remove that 3000 that multiplied the z coord in main
-        points_of_interest[:,2] = points_of_interest[:,2]/3000
-        self.face_3d = np.array(points_of_interest, dtype=np.float64)
+                    # Get inter-frame-translation of nose coords
+                    if not self.prev_nose_2d:
+                        inter_frame_translation = 0
+                        self.prev_nose_2d = nose_2d
+                    else:
+                        inter_frame_translation = np.linalg.norm(np.array(nose_2d) - np.array(self.prev_nose_2d))
+                        self.prev_nose_2d = nose_2d
+                    self.translation_list.append(inter_frame_translation)
+
+                x, y = int(lm.x * self.image_width), int(lm.y * self.image_height)
+
+                # Get the 2D Coordinates
+                self.face_2d.append([x, y])
+
+                # Get the 3D Coordinates
+                self.face_3d.append([x, y, lm.z])       
+            
+        # Convert it to the NumPy array
+        self.face_2d = np.array(self.face_2d, dtype=np.float64)
+
+        # Convert it to the NumPy array
+        self.face_3d = np.array(self.face_3d, dtype=np.float64)
+        
 
         # Solve PnP
         success, rot_vec, trans_vec = cv2.solvePnP(self.face_3d, self.face_2d, self.cam_mat, self.dist_mat)
@@ -98,7 +130,7 @@ class Head_Tracker:
         nose_3d_projection, jacobian = cv2.projectPoints(nose_3d, rot_vec, trans_vec, self.cam_mat, self.dist_mat)
 
         p1 = (int(nose_2d[0]), int(nose_2d[1]))
-        p2 = (int(nose_2d[0] - x * 10) , int(nose_2d[1] + y * 10))
+        p2 = (int(nose_2d[0] + y * 10) , int(nose_2d[1] - x * 10))
         
         cv2.line(image, p1, p2, (255, 0, 0), 3)
 

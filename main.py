@@ -70,7 +70,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         results = face_detection.process(image)
         image.flags.writeable = True
 
-        if results.multi_face_landmarks:
+        if results.multi_face_landmarks and ret:
             for detection in results.multi_face_landmarks:
 
                 # Draws the mesh over the face
@@ -115,7 +115,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 
         frame = HRM.get_bpm(ROI_colour)
         BD.get_ratio(total_landmarks)
-        display_frame = HT.get_angular_position(total_landmarks_3d, display_frame)
+        display_frame = HT.get_angular_position(detection.landmark, display_frame)
         display_frame = ET.track_eyes(display_frame, [left_eye, right_eye])
 
         # Finished processing, record frame time
