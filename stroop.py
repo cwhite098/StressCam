@@ -1,13 +1,17 @@
 from tkinter import *
+from tkinter.ttk import Progressbar
 import random
 from time import perf_counter, sleep
+from playsound import playsound
+import multiprocessing
 
 class stroop_test:
 
 
-    def __init__(self, timeout=2):
+    def __init__(self, timeout=2, sound=False):
 
         self.timeout = timeout
+        self.sound = sound
         self.score = 0
         self.attempts = 0
         self.colours = {'red':'r', 'blue':'b', 'green':'g', 'yellow':'y'}
@@ -22,16 +26,29 @@ class stroop_test:
                                  font=("Comic Sans MS", 50), width =12, height=1)
         self.score_label.place(relx = 0.6, rely = 0)
         self.start = True
+        # self.bar_thread = multiprocessing.Process(target=self.progress_bar)
+        # self.bar_thread.start()
+        if sound:
+            self.sound_thread = multiprocessing.Process(target=playsound, args=('rising.mp3',))
+            self.sound_thread.start()
 
     def stimulus(self):
         self.times_pressed = 0
         self.word = random.choice(list(self.colours))
-        self.same = random.choices([True, False], weights=(0.3, 0.7))[0]
+        self.same = random.choices([True, False], weights=(0.1, 0.9))[0]
         if self.same:
             return (self.word, self.word)
         list(self.colours).remove(self.word)
         self.colour = random.choice(list(self.colours))
         return self.word, self.colour
+
+    # def increase_bar(self):
+    #     self.timer_bar['value'] += 10
+    #
+    # def progress_bar(self):
+    #     self.timer_bar = Progressbar(self.root, orient='horizontal', length=100, mode='determinate')
+    #     self.timer_bar.place(relx=0.1, rely=0.1)
+    #     self.root.after(100, self.increase_bar)
 
     def key_pressed(self, event):
         self.times_pressed += 1
@@ -65,6 +82,8 @@ class stroop_test:
         self.root.after((self.timeout)*1000, self.new_question)
 
     def quit_selected(self):
+        if self.sound:
+            self.sound_thread.terminate()
         self.root.destroy()
 
     def run(self):
@@ -72,8 +91,9 @@ class stroop_test:
         self.closebutton.pack(padx=50, pady=50)
         self.new_question()
         self.root.bind('<Key>', lambda event,: self.key_pressed(event))
+
         self.root.mainloop()
 
 if __name__ == '__main__':
-    st = stroop_test()
+    st = stroop_test(timeout=2, sound=True)
     st.run()

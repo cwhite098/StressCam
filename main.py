@@ -42,11 +42,12 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
                 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109,
                 67, 103, 54, 21, 162]
 
-HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight)
-BD = Eyes_Mouth_Detector()
-HT = Head_Tracker(realWidth, realHeight)
+HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight, show_plots=False)
+BD = Eyes_Mouth_Detector(show_plots=False)
+HT = Head_Tracker(realWidth, realHeight, show_plots=False)
 ET = EyeTracker()
-cv2.namedWindow('eye_tracking')
+cv2.namedWindow("Display_Image", cv2.WINDOW_NORMAL)
+cv2.namedWindow('HRM frame', cv2.WINDOW_NORMAL)
 # st = stroop_test()
 
 
@@ -115,8 +116,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         frame = HRM.get_bpm(ROI_colour)
         BD.get_ratio(total_landmarks)
         display_frame = HT.get_angular_position(total_landmarks_3d, display_frame)
-
-        eye_frame = ET.track_eyes(image, [left_eye, right_eye])
+        display_frame = ET.track_eyes(display_frame, [left_eye, right_eye])
 
         # Finished processing, record frame time
         new_frame_time = time.time()
@@ -124,9 +124,9 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         prev_frame_time = new_frame_time
         print(int(fps))
 
-        cv2.imshow('eye_tracking', eye_frame)
+        #cv2.imshow('eye_tracking', eye_frame)
         cv2.imshow('HRM frame', frame)
-        cv2.imshow('Display', display_frame)
+        cv2.imshow('Display_Image', display_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

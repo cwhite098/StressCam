@@ -6,7 +6,9 @@ import heartpy as hp
 
 class Heart_Rate_Monitor:
 
-    def __init__(self, fps, videoWidth, videoHeight):
+    def __init__(self, fps, videoWidth, videoHeight, show_plots = True):
+
+        self.show_plots = show_plots
 
         # Set params for window
         self.realWidth = 640
@@ -55,30 +57,32 @@ class Heart_Rate_Monitor:
         mask_freqs = np.linspace(0,4,self.bufferSize)
         self.mask = (mask_freqs >= self.minFrequency) & (mask_freqs <= self.maxFrequency)
 
-        # Create figure with 2 plots
-        self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=3 , ncols=1)
-        self.fig.suptitle('HEART RATE MONITOR')
-        self.ax1 = self.axes[0]
-        self.ax2 = self.axes[1]
-        self.ax3 = self.axes[2]
-        # Set params for BPM graph
-        self.ax1.set_ylim([50,120]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('BPM')
-        self.ax1.set_title('Beats Per Minute')
-        # Set params for frequency spectrum
-        self.ax2.set_ylim([0,0.1]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
-        self.ax2.set_title('Fourier Transform')
-        # Set params for POS signal
-        self.ax3.set_ylim([-0.02,0.02]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('POS Signal')
-        self.ax3.set_title('POS Signal')
-        # Set the lines to be used for the plots
-        self.spec = self.ax2.plot(self.frequencies, np.zeros(self.bufferSizePOS), animated=True)[0]
-        self.line = self.ax1.plot(np.linspace(0,self.bpmBufferSize,self.bpmBufferSize),np.zeros(self.bpmBufferSize), animated=True)[0]
-        self.linePOS = self.ax3.plot(np.linspace(-1,1,self.bufferSizePOS), np.zeros(self.bufferSizePOS), animated=True)[0]
-        self.fig.show()
-        self.fig.canvas.draw()
-        self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
-        self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
-        self.background3 = self.fig.canvas.copy_from_bbox(self.ax3.bbox)
+        if self.show_plots:
+
+            # Create figure with 2 plots
+            self.fig, self.axes = plt.subplots(constrained_layout = True, nrows=3 , ncols=1)
+            self.fig.suptitle('HEART RATE MONITOR')
+            self.ax1 = self.axes[0]
+            self.ax2 = self.axes[1]
+            self.ax3 = self.axes[2]
+            # Set params for BPM graph
+            self.ax1.set_ylim([50,120]), self.ax1.set_xlabel('Time'), self.ax1.set_ylabel('BPM')
+            self.ax1.set_title('Beats Per Minute')
+            # Set params for frequency spectrum
+            self.ax2.set_ylim([0,0.1]), self.ax2.set_xlabel('Frequency'), self.ax2.set_ylabel('Magnitude')
+            self.ax2.set_title('Fourier Transform')
+            # Set params for POS signal
+            self.ax3.set_ylim([-0.02,0.02]), self.ax3.set_xlabel('Time'), self.ax3.set_ylabel('POS Signal')
+            self.ax3.set_title('POS Signal')
+            # Set the lines to be used for the plots
+            self.spec = self.ax2.plot(self.frequencies, np.zeros(self.bufferSizePOS), animated=True)[0]
+            self.line = self.ax1.plot(np.linspace(0,self.bpmBufferSize,self.bpmBufferSize),np.zeros(self.bpmBufferSize), animated=True)[0]
+            self.linePOS = self.ax3.plot(np.linspace(-1,1,self.bufferSizePOS), np.zeros(self.bufferSizePOS), animated=True)[0]
+            self.fig.show()
+            self.fig.canvas.draw()
+            self.background1 = self.fig.canvas.copy_from_bbox(self.ax1.bbox)
+            self.background2 = self.fig.canvas.copy_from_bbox(self.ax2.bbox)
+            self.background3 = self.fig.canvas.copy_from_bbox(self.ax3.bbox)
 
         # Lists to store bpm data and HRV data
         self.bpm_list = []
@@ -150,7 +154,9 @@ class Heart_Rate_Monitor:
 
             # Get POS fourier for plot
             self.POS_fourier = np.fft.fft(self.h)
-            self.plot_POS()
+
+            if self.show_plots:
+                self.plot_POS()
 
             # if the buffer is greater than the min data needed to get bpm
             if len(self.bufferPOS) > self.bpmCalculationBuffer:
@@ -192,7 +198,7 @@ class Heart_Rate_Monitor:
                 cv2.putText(frame, "BPM: %d" % 0, self.bpmTextLocation, self.font, self.fontScale, self.fontColor, self.lineType)
 
             # Get BPM subset and update plot
-            if len(self.total_bpm) > self.bpmBufferSize:
+            if len(self.total_bpm) > self.bpmBufferSize and self.show_plots:
                 self.bpm_list = self.total_bpm[-(self.bpmBufferSize+1):-1]
                 self.plot_bpm()
 
