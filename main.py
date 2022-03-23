@@ -1,14 +1,13 @@
-from blink_mouth_detection import Eyes_Mouth_Detector
-from heart_rate import Heart_Rate_Monitor
-from head_tracker import Head_Tracker
-from eye_tracking import EyeTracker
-from stroop import stroop_test
+from methods.blink_mouth_detection import Eyes_Mouth_Detector
+from methods.heart_rate import Heart_Rate_Monitor
+from methods.head_tracker import Head_Tracker
+from methods.eye_tracking import EyeTracker
 import mediapipe as mp
 import cv2
 import numpy as np
-from stroop import *
+from stroop.stroop import *
 import time
-from utils import get_hull, nothing
+from methods.utils import get_hull, nothing
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -42,10 +41,11 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
                 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109,
                 67, 103, 54, 21, 162]
 
-HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight, show_plots=False)
-BD = Eyes_Mouth_Detector(show_plots=False)
-HT = Head_Tracker(realWidth, realHeight, show_plots=False)
+HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight, show_plots=True)
+BD = Eyes_Mouth_Detector(show_plots=True)
+HT = Head_Tracker(realWidth, realHeight, show_plots=True)
 ET = EyeTracker()
+
 cv2.namedWindow("Display_Image", cv2.WINDOW_NORMAL)
 cv2.namedWindow('HRM frame', cv2.WINDOW_NORMAL)
 # st = stroop_test()
