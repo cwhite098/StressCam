@@ -11,11 +11,8 @@ class Heart_Rate_Monitor:
         self.show_plots = show_plots
 
         # Set params for window
-        self.realWidth = 640
-        self.realHeight = 480
-        # Params for box
-        self.videoWidth = videoWidth
-        self.videoHeight = videoHeight
+        self.realWidth = videoWidth
+        self.realHeight = videoHeight
 
         self.videoChannels = 3
         self.videoFrameRate = fps
@@ -31,7 +28,7 @@ class Heart_Rate_Monitor:
         # Output Display Parameters
         self.font = cv2.FONT_HERSHEY_SIMPLEX
         self.loadingTextLocation = (20, 30)
-        self.bpmTextLocation = (self.videoWidth//2 + 5, 30)
+        self.bpmTextLocation = (self.realWidth//2 + 5, 30)
         self.fontScale = 1
         self.fontColor = (255,255,255)
         self.lineType = 2
