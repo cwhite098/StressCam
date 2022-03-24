@@ -20,8 +20,8 @@ cap = cv2.VideoCapture()
 cap.open(0, cv2.CAP_DSHOW)
 cap.set(cv2.CAP_PROP_FPS, fps)
 
-realWidth = 640
-realHeight = 480
+realWidth = 720
+realHeight = 960
 
 boxWidth = 50
 boxHeight = 60
@@ -41,7 +41,7 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
                 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109,
                 67, 103, 54, 21, 162]
 
-HRM = Heart_Rate_Monitor(fps, boxWidth, boxHeight, show_plots=True)
+HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=True)
 BD = Eyes_Mouth_Detector(show_plots=True)
 HT = Head_Tracker(realWidth, realHeight, show_plots=True)
 ET = EyeTracker()
