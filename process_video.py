@@ -14,17 +14,14 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_face = mp.solutions.face_detection
 mp_face_mesh = mp.solutions.face_mesh
 
+video_path = 'data/videos/vid_s1_T1.avi'
+
 fps = 15
-cap = cv2.VideoCapture()
+cap = cv2.VideoCapture(video_path)
 # The device number might be 0 or 1 depending on the device and the webcam
-cap.open(0, cv2.CAP_DSHOW)
-cap.set(cv2.CAP_PROP_FPS, fps)
 
-realWidth = 640
-realHeight = 480
-
-boxWidth = 50
-boxHeight = 60
+realWidth = 1024
+realHeight = 1024
 
 cap.set(3, realWidth)
 cap.set(4, realHeight)
@@ -41,9 +38,9 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
                 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109,
                 67, 103, 54, 21, 162]
 
-HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=True)
-BD = Eyes_Mouth_Detector(show_plots=True)
-HT = Head_Tracker(realWidth, realHeight, show_plots=True)
+HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=False)
+BD = Eyes_Mouth_Detector(show_plots=False)
+HT = Head_Tracker(realWidth, realHeight, show_plots=False)
 ET = EyeTracker()
 
 cv2.namedWindow("Display_Image", cv2.WINDOW_NORMAL)
@@ -63,6 +60,10 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         reye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
         mouth_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
         face_top_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
+
+        if not ret:
+            print('frame capture failed...')
+            break
 
         # set to false before processing - apparently increases performance
         image.flags.writeable = False
@@ -126,7 +127,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         new_frame_time = time.time()
         fps = 1 / (new_frame_time - prev_frame_time)
         prev_frame_time = new_frame_time
-        #print(int(fps))
+        print(int(fps))
 
         #cv2.imshow('eye_tracking', eye_frame)
         cv2.imshow('HRM frame', frame)
