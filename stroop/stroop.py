@@ -1,5 +1,4 @@
 from tkinter import *
-from tkinter.ttk import Progressbar
 import random
 from time import perf_counter, sleep
 from playsound import playsound
@@ -16,10 +15,12 @@ class stroop_test:
         self.attempts = 0
         self.colours = {'red':'r', 'blue':'b', 'green':'g', 'yellow':'y'}
         self.root = Tk()
+        self.root.title('Stroop Test')
         self.times_pressed = 0
         self.word, self.colour = self.stimulus()
         self.label = Label(self.root, text=self.word, fg=self.colour, font=("Comic Sans MS", 200), width =8, height=2)
         self.label.pack()
+        self.instructions = PhotoImage(file='instructions.png')
         self.cross = PhotoImage(file='big-red-cross.png')
         self.tick = PhotoImage(file='big-green-tick.png')
         self.wrong = Label(self.root, image=self.cross, width =8000, height=2000)
@@ -31,6 +32,27 @@ class stroop_test:
         if sound:
             self.sound_thread = multiprocessing.Process(target=playsound, args=('rising.mp3',))
             self.sound_thread.start()
+
+    def start_screen(self):
+        self.start_root = Toplevel(background='white')
+        self.start_root.geometry('1024x780')
+        self.start_root.title('Stroop Test')
+
+        instructions = Label(self.start_root, image=self.instructions, width=6000)
+
+        # self.start_label = Label(self.start_root, text='Welcome to the stroop test. '
+        #                                                '\n Please select your'
+        #                                                '\n intended stress level.',
+        #                          font=('Comic Sans MS', 60))
+
+        self.easy = Button(self.start_root, text='Low', command=lambda: self.run(2), width=15, height=5)
+        self.hard = Button(self.start_root, text='High', command=lambda: self.run(1), width=15, height=5)
+        self.exit = Button(self.start_root, text='Exit', command=self.root.destroy)
+        self.easy.place(relx=0.4, rely=0.88, anchor='center')
+        self.hard.place(relx=0.6, rely=0.88, anchor='center')
+        self.exit.place(relx=0.5, rely=0.98, anchor='center')
+        instructions.place(relx=0.5, rely=0.5, anchor='center')
+        self.start_root.mainloop()
 
     def stimulus(self):
         self.times_pressed = 0
@@ -61,7 +83,7 @@ class stroop_test:
         print(self.colours[self.colour], event.char)
         print(f'Score:{self.score}/{self.attempts}')
 
-    def new_question(self):
+    def new_question(self, timeout):
         if self.wrong.winfo_exists():
             self.wrong.destroy()
         if self.right.winfo_exists():
@@ -75,21 +97,21 @@ class stroop_test:
         self.word, self.colour = self.stimulus()
         self.label.config(text=self.word, fg=self.colour)
         self.label.update()
-        self.root.after((self.timeout)*1000, self.new_question)
+        self.root.after((timeout)*1000, lambda: self.new_question(timeout))
 
     def quit_selected(self):
         if self.sound:
             self.sound_thread.terminate()
         self.root.destroy()
 
-    def run(self):
+    def run(self, timeout):
+        self.start_root.destroy()
         self.closebutton = Button(self.root, text='close', command=self.quit_selected)
         self.closebutton.pack(padx=50, pady=50)
-        self.new_question()
+        self.new_question(timeout)
         self.root.bind('<Key>', lambda event,: self.key_pressed(event))
 
         self.root.mainloop()
-
 if __name__ == '__main__':
-    st = stroop_test(timeout=2, sound=False)
-    st.run()
+    st = stroop_test(sound=False)
+    st.start_screen()
