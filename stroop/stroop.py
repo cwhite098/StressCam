@@ -20,14 +20,14 @@ class stroop_test:
         self.word, self.colour = self.stimulus()
         self.label = Label(self.root, text=self.word, fg=self.colour, font=("Comic Sans MS", 200), width =8, height=2)
         self.label.pack()
-        self.img = PhotoImage(file='big-red-cross.png')
-        self.image = Label(self.root, image=self.img, width =8000, height=2000)
+        self.cross = PhotoImage(file='big-red-cross.png')
+        self.tick = PhotoImage(file='big-green-tick.png')
+        self.wrong = Label(self.root, image=self.cross, width =8000, height=2000)
+        self.right = Label(self.root, image=self.tick, width =8000, height=2000)
         self.score_label = Label(self.root, text=f'Score: {self.score} / {self.attempts}',
                                  font=("Comic Sans MS", 50), width =12, height=1)
         self.score_label.place(relx = 0.6, rely = 0)
         self.start = True
-        # self.bar_thread = multiprocessing.Process(target=self.progress_bar)
-        # self.bar_thread.start()
         if sound:
             self.sound_thread = multiprocessing.Process(target=playsound, args=('rising.mp3',))
             self.sound_thread.start()
@@ -42,14 +42,6 @@ class stroop_test:
         self.colour = random.choice(list(self.colours))
         return self.word, self.colour
 
-    # def increase_bar(self):
-    #     self.timer_bar['value'] += 10
-    #
-    # def progress_bar(self):
-    #     self.timer_bar = Progressbar(self.root, orient='horizontal', length=100, mode='determinate')
-    #     self.timer_bar.place(relx=0.1, rely=0.1)
-    #     self.root.after(100, self.increase_bar)
-
     def key_pressed(self, event):
         self.times_pressed += 1
         print(self.times_pressed)
@@ -57,10 +49,12 @@ class stroop_test:
             if self.colours[self.colour] == event.char:
                 self.score += 1
                 self.attempts += 1
+                self.right = Label(self.root, image=self.tick, width =800, height=500)
+                self.right.place(relx=0.5, rely=0.5, anchor='center')
             else:
                 self.attempts += 1
-                self.image = Label(self.root, image=self.img, width =800, height=500)
-                self.image.place(relx=0.5, rely=0.5, anchor='center')
+                self.wrong = Label(self.root, image=self.cross, width =800, height=500)
+                self.wrong.place(relx=0.5, rely=0.5, anchor='center')
         self.score_label.config(text =f'Score: {self.score} / {self.attempts}')
         self.score_label.update()
 
@@ -68,8 +62,10 @@ class stroop_test:
         print(f'Score:{self.score}/{self.attempts}')
 
     def new_question(self):
-        if self.image.winfo_exists():
-            self.image.destroy()
+        if self.wrong.winfo_exists():
+            self.wrong.destroy()
+        if self.right.winfo_exists():
+            self.right.destroy()
         if self.times_pressed == 0:
             if not self.start:
                 self.attempts += 1
@@ -95,5 +91,5 @@ class stroop_test:
         self.root.mainloop()
 
 if __name__ == '__main__':
-    st = stroop_test(timeout=2, sound=True)
+    st = stroop_test(timeout=2, sound=False)
     st.run()

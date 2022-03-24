@@ -15,7 +15,8 @@ mp_face = mp.solutions.face_detection
 mp_face_mesh = mp.solutions.face_mesh
 
 fps = 15
-cap = cv2.VideoCapture()
+# cap = cv2.VideoCapture()
+cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
 # The device number might be 0 or 1 depending on the device and the webcam
 cap.open(0, cv2.CAP_DSHOW)
 cap.set(cv2.CAP_PROP_FPS, fps)
