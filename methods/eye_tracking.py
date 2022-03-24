@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import pandas as pd
 
 
 class Eye:
@@ -48,6 +49,8 @@ class EyeTracker:
         self.saved_prev = None
         self.timer = 0
 
+        self.data = pd.DataFrame(columns=['left eye', 'right eye'])
+
     def track_eyes(self, image, eyes):
         """
         Calculates the position of the eyes using simple image processing
@@ -76,7 +79,8 @@ class EyeTracker:
 
             # Find the circles, using Hough Transform. May have to adapt these params
             circ = cv2.HoughCircles(grey_eye_box, cv2.HOUGH_GRADIENT, 1, 20,
-                                    param1=160, param2=25, minRadius=1, maxRadius=int(eye_width / 3))
+                                    param1=np.mean(grey_eye_box), param2=25, minRadius=int(eye_width / 8),
+                                    maxRadius=int(eye_width / 4))
 
             if circ is None:
                 if eye.tracker < 20:
@@ -86,36 +90,43 @@ class EyeTracker:
                 eye.saved_prev = circ
                 eye.tracker = 0
 
-            # ================= Find the keys using blob detection points (OLD, DIDN'T REALLY WORK) ==================
-            #
-            # blur = cv2.medianBlur(grey_eye_box, 3)
-            # _, p_image = cv2.threshold(blur, self.threshold, 255, cv2.THRESH_BINARY)
-            # ret3, p_image = cv2.threshold(grey_eye_box, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            #
-            # p_image = cv2.erode(p_image, None, iterations=1)  # 1
-            #
-            # p_image = cv2.dilate(p_image, None, iterations=2)  # 2
-            #
-            # p_image = cv2.medianBlur(p_image, 5)  # 3
-            # grey_eye_box = cv2.cvtColor(grey_eye_box, cv2.COLOR_GRAY2RGB)
-            #
-            # p_image = cv2.drawKeypoints(grey_eye_box, keypoints, grey_eye_box, (0, 0, 255),
-            #                             cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-            # keypoints = self.detector.detect(p_image)
-            #
-            # ========================================================================================================
+        # self.data.append([self.l_eye, self.r_eye])
+
+        # ================= Find the keys using blob detection points (OLD, DIDN'T REALLY WORK) ==================
+        #
+        # blur = cv2.medianBlur(grey_eye_box, 3)
+        # _, p_image = cv2.threshold(blur, self.threshold, 255, cv2.THRESH_BINARY)
+        # ret3, p_image = cv2.threshold(grey_eye_box, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        #
+        # p_image = cv2.erode(p_image, None, iterations=1)  # 1
+        #
+        # p_image = cv2.dilate(p_image, None, iterations=2)  # 2
+        #
+        # p_image = cv2.medianBlur(p_image, 5)  # 3
+        # grey_eye_box = cv2.cvtColor(grey_eye_box, cv2.COLOR_GRAY2RGB)
+        #
+        # p_image = cv2.drawKeypoints(grey_eye_box, keypoints, grey_eye_box, (0, 0, 255),
+        #                             cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        # keypoints = self.detector.detect(p_image)
+        #
+        # ========================================================================================================
 
     def draw_circles(self, image):
+        """
+        Draws the circles found from the eye tracking method on the input fram
+        :param image: Input frame
+        :return: A frame with circles drawn on the eyes.
+        """
         for eye in self.eye_list:
-            x_min, y_min, x_max, y_max = eye.get_boxes()
-            try:
+            if eye.circles is not None:
                 circle = np.uint16(np.around(eye.circles))
+                x_min, y_min, x_max, y_max = eye.get_boxes()
                 for i in circle[0, :]:
                     # draw the outer circle
                     cv2.circle(image, (i[0] + x_min - 15, i[1] + y_min - 15), i[2], (0, 255, 0), 2)
                     # draw the center of the circle
                     cv2.circle(image, (i[0] + x_min - 15, i[1] + y_min - 15), 2, (0, 0, 255), 3)
-            except:
+            else:
                 pass
 
         return image

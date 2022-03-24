@@ -123,7 +123,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         new_frame_time = time.time()
         fps = 1 / (new_frame_time - prev_frame_time)
         prev_frame_time = new_frame_time
-        print(int(fps))
+        #print(int(fps))
 
         #cv2.imshow('eye_tracking', eye_frame)
         cv2.imshow('HRM frame', frame)
@@ -133,7 +133,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
             break
 
 print('Detected Blinks: ', BD.blink_counter)
-
+print(ET.data)
 cap.release()
 cv2.destroyAllWindows()
 HRM.save_data('HRM_data.csv')
