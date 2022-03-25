@@ -45,7 +45,7 @@ class EyeTracker:
 
         self.l_eye = Eye()
         self.r_eye = Eye()
-
+        self.threshold = 20
         self.saved_prev = None
         self.timer = 0
 
@@ -75,18 +75,30 @@ class EyeTracker:
             eye_width = x_max - x_min
 
             # Make image grayscale
-            grey_eye_box = cv2.cvtColor(eye_box, cv2.COLOR_BGR2GRAY)
+            try:
+                grey_eye_box = cv2.cvtColor(eye_box, cv2.COLOR_BGR2GRAY)
 
-            # Find the circles, using Hough Transform. May have to adapt these params
-            circ = cv2.HoughCircles(grey_eye_box, cv2.HOUGH_GRADIENT, 1, 20,
-                                    param1=np.mean(grey_eye_box), param2=25, minRadius=int(eye_width / 8),
-                                    maxRadius=int(eye_width / 4))
+                # Find the circles, using Hough Transform. May have to adapt these params
+                circ = cv2.HoughCircles(grey_eye_box, cv2.HOUGH_GRADIENT, 1, 20,
+                                        param1=np.mean(grey_eye_box), param2=self.threshold,
+                                        minRadius=int(eye_width / 5),
+                                        maxRadius=int(eye_width / 4))
+            except:
+                circ = None
 
             if circ is None:
                 if eye.tracker < 20:
                     eye.circles = eye.saved_prev
+                elif eye.tracker % 5 == 0:
+                    self.threshold -= 1
                 eye.tracker += 1
+            elif len(circ) != 1:
+                if eye.tracker < 20:
+                    eye.circles = eye.saved_prev
+                eye.tracker += 1
+                self.threshold+=1
             else:
+                self.threshold = 25
                 eye.saved_prev = circ
                 eye.tracker = 0
 
