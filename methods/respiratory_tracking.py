@@ -1,3 +1,4 @@
+# %%
 from heapq import nlargest
 from matplotlib import animation
 from scipy import signal
@@ -8,20 +9,22 @@ from matplotlib.animation import FuncAnimation
 import time   
 
 class Resp_Rate:
-    def __init__(self, win_size=20, vid=None, animate=True):
+    def __init__(self, win_size=20, vid=None, animate=True, ROI=None):
         self.vid = vid
         self.animate = animate
+        self.ROI = ROI
         self.First = True
         self.dur = win_size
         self.fps = 10
         self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
 
     def resp_pattern(self, frames, init=True):
+        '''Extract respiration pattern'''
         if init:
+            self.y_len, self.x_len, _ = frames[0].shape
             p_y_f = []
             sd_list = []
             for frame in frames:
-                self.y_len, self.x_len, _ = frames[0].shape
                 p_f = [(sum([sum([frame[y, x, i] for i in range(3)]) for x in range(self.x_len)]))/self.x_len for y in range(self.y_len)]
                 p_f_detrend = signal.detrend(p_f, type='constant')
                 p_y_f.append(p_f_detrend)
@@ -51,54 +54,42 @@ class Resp_Rate:
         y = signal.lfilter(b, a, p_f)
         self.p_norm = (y-np.mean(y))/np.std(y)
 
-    def resp_rate(self, p_norm):
+    def resp_rate(self):
+        '''Calculate respiration rate'''
         cross_zero_idx = []
-        for i in range(1, p_norm):
-            if p_norm[i-1]<0 and p_norm[i]>0: # p_norm[i-1]>0 and p_norm[i+1]<0 or 
+        for i in range(1, self.p_norm.size):
+            if self.p_norm[i-1]<0 and self.p_norm[i]>=0: # p_norm[i-1]>0 and p_norm[i+1]<0 or 
                 cross_zero_idx.append(i)
         min_idx_list = []
         for i in range(1, len(cross_zero_idx)):
-            idx = p_norm==min(p_norm[cross_zero_idx[i-1]:cross_zero_idx[i]])
+            idx = np.where(self.p_norm==min(self.p_norm[cross_zero_idx[i-1]:cross_zero_idx[i]]))
             min_idx_list.append(idx)
         f_Ri = [60/(min_idx_list[i]-min_idx_list[i-1]) for i in range(1, len(min_idx_list))]
         return f_Ri
-
-    def init_draw(self):
-        self.fig, self.ax = plt.subplots(1, 1)
-        sig = self.ax.plot(self.p_norm, animated=True)[0]
-        self.fig.show()
-        self.sig.canvas.draw()
-        self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
-    
-    def update_draw(self):
-        self.fig.canvas.restore_region(self.background)
-        self.sig.set_ydata(self.p_norm)
-        self.ax.draw_artist(self.sig)
-        self.fig.canvas.blit(self.ax.bbox)
-    
-    def update_fig(self, i):
-        # self.ax1.set_ydata(self.p_y_f)
-        self.sig.set_ydata(self.p_norm)
-        pass
     
     def plot_sig(self):
-        # self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
-        for col in range(self.y_len):
-            self.ax1.plot(self.p_y_f[:, col])
+        '''Plot respiration signal'''
+        # for col in range(self.y_len):
+        #     self.ax1.plot(self.p_y_f[:, col])
         self.sig = self.ax2.plot(self.p_norm)[0]
         
     def vid_feed(self):
-        cap = cv.VideoCapture(self.vid)
-        _, cur = cap.read()
-        ROI = cv.selectROI('ROI', cur)
-        cv.destroyWindow('ROI')
+        '''Process pre recorded video'''
+        self.cap = cv.VideoCapture(self.vid)
+        if self.ROI is None:
+            # Select ROI manually
+            _, cur = self.cap.read()
+            ROI = cv.selectROI('ROI', cur)
+            cv.destroyWindow('ROI')
+        else:
+            ROI = self.ROI
         # ROI = (531, 464, 244, 139)
         # ROI = (534, 465, 224, 173)
         cropped_list = []
-        n_frame = int(cap.get(cv.CAP_PROP_FRAME_COUNT))
+        n_frame = int(self.cap.get(cv.CAP_PROP_FRAME_COUNT))
         start = time.time()
         for i in range(n_frame):
-            _, cur = cap.read()
+            _, cur = self.cap.read()
             if cur is None:
                 break
             # cv.imshow('frame', cur)
@@ -108,12 +99,15 @@ class Resp_Rate:
         cropped_list = np.array(cropped_list)
         self.resp_pattern(cropped_list)
         self.plot_sig()
+        # rate = self.resp_rate()
+        # print(rate)
         print(time.time()-start)
         plt.show()
-        cap.release()
+        self.cap.release()
         cv.destroyAllWindows()
     
     def live_feed_animate(self, i):
+        '''Recurrent function for plot animation'''
         start = time.time()
         if self.First:
             # init window
@@ -144,6 +138,7 @@ class Resp_Rate:
         return self.sig,
     
     def live_feed_loop(self):
+        '''Function for online input without plot'''
         while True:
             start = time.time()
             if self.First:
@@ -172,6 +167,7 @@ class Resp_Rate:
                 self.resp_pattern(cropped, init=False)
     
     def live_feed(self):
+        '''Process online input'''
         self.cap = cv.VideoCapture()
         self.cap.open(0, cv.CAP_DSHOW)
         _, cur = self.cap.read()
@@ -192,6 +188,8 @@ class Resp_Rate:
         else:
             self.vid_feed()
 
-Resp = Resp_Rate(vid='Recording2_Trim.mp4')
+Resp = Resp_Rate(vid='Recording2_Trim.mp4', ROI=(534, 465, 224, 173))
 # Resp = Resp_Rate(animate=False)
 Resp.analysis_feed()
+
+# %%
