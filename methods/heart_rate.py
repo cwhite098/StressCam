@@ -6,9 +6,10 @@ import heartpy as hp
 
 class Heart_Rate_Monitor:
 
-    def __init__(self, fps, videoWidth, videoHeight, show_plots = True):
+    def __init__(self, fps, videoWidth, videoHeight, show_plots = True, process_signal=True):
 
         self.show_plots = show_plots
+        self.process_signal = process_signal
 
         # Set params for window
         self.realWidth = videoWidth
@@ -139,7 +140,7 @@ class Heart_Rate_Monitor:
         filtered_POS = np.array([])
 
         # if the POS signal buffer is above the set threshold
-        if len(self.bufferPOS) > self.bufferSizePOS:
+        if len(self.bufferPOS) > self.bufferSizePOS and self.process_signal:
 
             # This section of code is just to plot the POS and fourier - is it necessary?
             # Could wrap this as a separate function
