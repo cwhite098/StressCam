@@ -7,24 +7,26 @@ import cv2
 import numpy as np
 from stroop.stroop import *
 import time
-from methods.utils import get_hull, nothing
+from methods.utils import get_hull, nothing, save_data
+from imutils.video import FileVideoStream
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_face = mp.solutions.face_detection
 mp_face_mesh = mp.solutions.face_mesh
 
-video_path = 'data/videos/vid_s1_T1.avi'
+video_path = 'data/videos/vid_s2_T3.avi'
+features_path = 'data/extracted_data/' + video_path[12:-4] + '.csv'
 
-fps = 15
-cap = cv2.VideoCapture(video_path)
+fps = 35
+#cap = cv2.VideoCapture(video_path)
 # The device number might be 0 or 1 depending on the device and the webcam
 
 realWidth = 1024
 realHeight = 1024
 
-cap.set(3, realWidth)
-cap.set(4, realHeight)
+#cap.set(3, realWidth)
+#cap.set(4, realHeight)
 
 # Record frame times for fps counter
 prev_frame_time = 0
@@ -38,40 +40,36 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
                 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109,
                 67, 103, 54, 21, 162]
 
-HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=False)
+# Initialise metric trackers
+HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=False, process_signal=False)
 BD = Eyes_Mouth_Detector(show_plots=False)
 HT = Head_Tracker(realWidth, realHeight, show_plots=False)
 ET = EyeTracker()
 
-cv2.namedWindow("Display_Image", cv2.WINDOW_NORMAL)
-cv2.namedWindow('HRM frame', cv2.WINDOW_NORMAL)
-# st = stroop_test()
+# Initialise frame loader
+fvs = FileVideoStream(video_path).start()
+time.sleep(1.0)
 
 
 # init model
 with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
                            refine_landmarks=True, min_detection_confidence=0.5) as face_detection:
-    while True:
+    while fvs.running():
 
         # Read the output from the webcam
-        ret, image = cap.read()
+        image = fvs.read()
         face_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
         leye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
         reye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
         mouth_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
         face_top_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
 
-        if not ret:
-            print('frame capture failed...')
-            break
-
-        # set to false before processing - apparently increases performance
         image.flags.writeable = False
         # Detect the face
         results = face_detection.process(image)
         image.flags.writeable = True
 
-        if results.multi_face_landmarks and ret:
+        if results.multi_face_landmarks:
             for detection in results.multi_face_landmarks:
 
                 # Draws the mesh over the face
@@ -83,13 +81,11 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 				'''
                 # Extract the landmarks from the mesh and get the coords
                 total_landmarks = []
-                total_landmarks_3d = []
+
                 for lm in detection.landmark:
                     point = [lm.x * realWidth, lm.y * realHeight]
                     total_landmarks.append(point)
-                    total_landmarks_3d.append([lm.x * realWidth, lm.y * realHeight, lm.z * 3000])
                 total_landmarks = np.array(total_landmarks, dtype=int)
-                total_landmarks_3d = np.array(total_landmarks_3d, dtype=np.float64)
 
                 total_face = np.array(get_hull(total_landmarks), dtype=int)
 
@@ -114,8 +110,8 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
                 display_mask = face_mask
                 display_frame = cv2.bitwise_and(image, image, mask=display_mask)
         else:
-            print('Frame failed, quitting...')
-            break
+            print('Frame failed, skipping...')
+            continue
 
         frame = HRM.get_bpm(ROI_colour)
         BD.get_ratio(total_landmarks)
@@ -130,14 +126,16 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         print(int(fps))
 
         #cv2.imshow('eye_tracking', eye_frame)
-        cv2.imshow('HRM frame', frame)
-        cv2.imshow('Display_Image', pointer_frame)
+        #cv2.imshow('HRM frame', frame)
+        #cv2.imshow('Display_Image', pointer_frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
 print('Detected Blinks: ', BD.blink_counter)
 print(ET.data)
-cap.release()
+#cap.release()
 cv2.destroyAllWindows()
-HRM.save_data('HRM_data.csv')
+
+fvs.stop()
+save_data(HRM, HT, BD, ET, None, features_path)
