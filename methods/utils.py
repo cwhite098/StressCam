@@ -16,6 +16,21 @@ def get_hull(pts):
 def save_data(HRM, HT, BMD, ET, RT, path):
     '''
     Function that takes all the metric-tracking classes and produces and saves a dataframe.
+
+    Parameters
+    ----------
+    HRM : heart rate monitoring class
+
+    HT : head tracing class
+
+    BMD : blink and mouth detection class
+
+    ET : eye tracking class
+
+    RT : respiration rate tracking class
+
+    path : string
+        The path the save the data to.
     '''
     print('SAVING DATA')
 
@@ -36,3 +51,21 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['HEAD_TRANS'] = HT.translation_list
 
     df.to_csv(path)
+
+
+def get_summary_stats(df, labels, range=None):
+    """
+    Calculates some summary stats for the timeseries'
+    :param: df = df containing the whole dataset for a sensor
+    :param: labels = the variables to get the stats for
+    :returns: stats_df = pandas dataframe containing the stats
+    """
+    stats_df = np.array(['Label', 'Mean', 'Max', 'Min', 'Std'])
+
+    for label in labels:
+        timeseries = df[label]
+
+        stats = np.array([label, np.mean(timeseries), np.max(timeseries), np.min(timeseries), np.std(timeseries)])
+        stats_df = np.vstack((stats_df, stats))
+
+    return pd.DataFrame(data=stats_df[1:, :], columns=stats_df[0, :])
