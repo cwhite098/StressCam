@@ -77,6 +77,17 @@ for df in all_data[1:]:
 print(X.shape)
 
 
+'''
+Sometimes the eye ratio returns a +inf - this is problematic
+For now, just remove the inf and interpolate to fill in missing value
+'''
+where_is_pinf = np.array(np.where(np.isposinf(X)))
+for i in range(len(where_is_pinf[0])):
+    X[where_is_pinf[0,i], where_is_pinf[1,i], where_is_pinf[2,i]] = np.mean(
+        (X[where_is_pinf[0,i]-1, where_is_pinf[1,i], where_is_pinf[2,i]], X[where_is_pinf[0,i]+1, where_is_pinf[1,i], where_is_pinf[2,i]] )        
+        )
+
+
 # Train/test split
 X = np.swapaxes(X, 0, 2)
 X_train, X_test, y_train, y_test = train_test_split(X, class_labels)
@@ -89,6 +100,7 @@ Is this the right way to do it - maybe apply rocket and get HRV features and THE
 Or should we be scaling the time series before ROCKET and then scaling the feature vectors again?
 
 Turns out ROCKET can do the normalisation for me - maybe remove this after that has been tested
+'''
 '''
 scalers = {}
 for i in range(X_train.shape[1]):
@@ -103,7 +115,7 @@ for i in range(X_train.shape[1]):
 for i in range(X_test.shape[1]):
     for j in range(X_test.shape[0]):
         X_test[j,i,:] = scalers[i].transform(X_test[j,i,:].reshape(-1, 1)).flatten()
-
+'''
 
 # Get and save HRV features
 train_HRV_features = []
@@ -142,12 +154,14 @@ print(X_train_transform.shape)
 X_test_transform = rocket.transform(X_test)
 
 
-# Re-add HRV features
+# Re-add HRV features + remove any NaNs that come from bad signals
 train_HRV_features = pd.DataFrame(train_HRV_features)
-X_train_transform = pd.concat([X_train_transform, train_HRV_features], axis=1)
+X_train_transform = pd.concat([X_train_transform, train_HRV_features.iloc[:,1:]], axis=1)
+X_train_transform = pd.DataFrame(X_train_transform).fillna(0)
 
 test_HRV_features = pd.DataFrame(test_HRV_features)
-X_test_transform = pd.concat([X_test_transform, test_HRV_features], axis=1)
+X_test_transform = pd.concat([X_test_transform, test_HRV_features.iloc[:,1:]], axis=1)
+X_test_transform = pd.DataFrame(X_test_transform).fillna(0)
 
 
 # Scale the final feature vectors before PCA
@@ -159,9 +173,23 @@ X_test_transform = scaler.transform(X_test_transform)
 # Do PCA and have a look
 pca = PCA(n_components=10)
 X_train_pca = pca.fit_transform(X_train_transform)
-plt.scatter(X_train_pca[:,0], X_train_pca[:,1], c=y_train)
+# Get the indexes for the different classes
+T1_idx = [i for i,x in enumerate(y_train) if x == 0]
+T2_idx = [i for i,x in enumerate(y_train) if x == 1]
+T3_idx = [i for i,x in enumerate(y_train) if x == 2]
+# PC1 and PC2
+plt.scatter(X_train_pca[T1_idx,0], X_train_pca[T1_idx,1], label='T1')
+plt.scatter(X_train_pca[T2_idx,0], X_train_pca[T2_idx,1], label='T2')
+plt.scatter(X_train_pca[T3_idx,0], X_train_pca[T3_idx,1], label='T3')
+plt.legend()
 plt.show()
-
+# PC1 and PC3
+plt.scatter(X_train_pca[T1_idx,0], X_train_pca[T1_idx,2], label='T1')
+plt.scatter(X_train_pca[T2_idx,0], X_train_pca[T2_idx,2], label='T2')
+plt.scatter(X_train_pca[T3_idx,0], X_train_pca[T3_idx,2], label='T3')
+plt.legend()
+plt.show()
+# Elbow plot
 plt.plot(np.linspace(1,10,10), pca.explained_variance_ratio_)
 plt.show()
 
