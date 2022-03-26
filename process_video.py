@@ -9,14 +9,15 @@ from stroop.stroop import *
 import time
 from methods.utils import get_hull, nothing, save_data
 from imutils.video import FileVideoStream
+import os
+
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_face = mp.solutions.face_detection
 mp_face_mesh = mp.solutions.face_mesh
 
-video_path = 'data/videos/vid_s2_T3.avi'
-features_path = 'data/extracted_data/' + video_path[12:-4] + '.csv'
+
 
 fps = 35
 #cap = cv2.VideoCapture(video_path)
@@ -46,96 +47,105 @@ BD = Eyes_Mouth_Detector(show_plots=False)
 HT = Head_Tracker(realWidth, realHeight, show_plots=False)
 ET = EyeTracker()
 
-# Initialise frame loader
-fvs = FileVideoStream(video_path).start()
-time.sleep(1.0)
+path = 'data/videos/'
+# Set up the loop here to process multiple video files
+videos = os.listdir(path)
 
+for video in videos[6:]:
+    print(video)
 
-# init model
-with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
-                           refine_landmarks=True, min_detection_confidence=0.5) as face_detection:
-    while fvs.running():
+    video_path = path+video
+    features_path = 'data/extracted_data/' + video_path[12:-4] + '.csv'
 
-        # Read the output from the webcam
-        image = fvs.read()
-        face_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
-        leye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
-        reye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
-        mouth_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
-        face_top_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
+    # Initialise frame loader
+    fvs = FileVideoStream(video_path).start()
+    time.sleep(1.0)
 
-        image.flags.writeable = False
-        # Detect the face
-        results = face_detection.process(image)
-        image.flags.writeable = True
+    # init model
+    with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
+                            refine_landmarks=True, min_detection_confidence=0.5) as face_detection:
+        while fvs.running():
 
-        if results.multi_face_landmarks:
-            for detection in results.multi_face_landmarks:
+            # Read the output from the webcam
+            image = fvs.read()
+            face_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
+            leye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
+            reye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
+            mouth_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
+            face_top_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
 
-                # Draws the mesh over the face
-                '''
-				mp_drawing.draw_landmarks(image=image, landmark_list=detection,
-										connections=mp_face_mesh.FACEMESH_TESSELATION,
-										landmark_drawing_spec=None,
-										connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
-				'''
-                # Extract the landmarks from the mesh and get the coords
-                total_landmarks = []
+            image.flags.writeable = False
+            # Detect the face
+            results = face_detection.process(image)
+            image.flags.writeable = True
 
-                for lm in detection.landmark:
-                    point = [lm.x * realWidth, lm.y * realHeight]
-                    total_landmarks.append(point)
-                total_landmarks = np.array(total_landmarks, dtype=int)
+            if results.multi_face_landmarks:
+                for detection in results.multi_face_landmarks:
 
-                total_face = np.array(get_hull(total_landmarks), dtype=int)
+                    # Draws the mesh over the face
+                    '''
+                    mp_drawing.draw_landmarks(image=image, landmark_list=detection,
+                                            connections=mp_face_mesh.FACEMESH_TESSELATION,
+                                            landmark_drawing_spec=None,
+                                            connection_drawing_spec=mp_drawing_styles.get_default_face_mesh_tesselation_style())
+                    '''
+                    # Extract the landmarks from the mesh and get the coords
+                    total_landmarks = []
 
-                left_eye = np.array(get_hull(total_landmarks[leye_idx]), dtype=int)
-                right_eye = np.array(get_hull(total_landmarks[reye_idx]), dtype=int)
+                    for lm in detection.landmark:
+                        point = [lm.x * realWidth, lm.y * realHeight]
+                        total_landmarks.append(point)
+                    total_landmarks = np.array(total_landmarks, dtype=int)
 
-                mouth = np.array(get_hull(total_landmarks[mouth_idx]), dtype=int)
-                top_face = np.array(get_hull(total_landmarks[face_top_idx]), dtype=int)
-                cv2.drawContours(face_mask, [total_face], -1, (255, 255, 255), -1, cv2.LINE_AA)
-                cv2.drawContours(leye_mask, [left_eye], -1, (255, 255, 255), -1, cv2.LINE_AA)
-                cv2.drawContours(reye_mask, [right_eye], -1, (255, 255, 255), -1, cv2.LINE_AA)
-                cv2.drawContours(mouth_mask, [mouth], -1, (255, 255, 255), -1, cv2.LINE_AA)
-                cv2.drawContours(face_top_mask, [top_face], -1, (255, 255, 255), -1, cv2.LINE_AA)
+                    total_face = np.array(get_hull(total_landmarks), dtype=int)
 
-                ROI_mask = face_mask - face_top_mask - mouth_mask
+                    left_eye = np.array(get_hull(total_landmarks[leye_idx]), dtype=int)
+                    right_eye = np.array(get_hull(total_landmarks[reye_idx]), dtype=int)
 
-                # Use the mask to get the coloured region of the original frame for HRM
-                ROI_colour = cv2.bitwise_and(image, image, mask=ROI_mask)
+                    mouth = np.array(get_hull(total_landmarks[mouth_idx]), dtype=int)
+                    top_face = np.array(get_hull(total_landmarks[face_top_idx]), dtype=int)
+                    cv2.drawContours(face_mask, [total_face], -1, (255, 255, 255), -1, cv2.LINE_AA)
+                    cv2.drawContours(leye_mask, [left_eye], -1, (255, 255, 255), -1, cv2.LINE_AA)
+                    cv2.drawContours(reye_mask, [right_eye], -1, (255, 255, 255), -1, cv2.LINE_AA)
+                    cv2.drawContours(mouth_mask, [mouth], -1, (255, 255, 255), -1, cv2.LINE_AA)
+                    cv2.drawContours(face_top_mask, [top_face], -1, (255, 255, 255), -1, cv2.LINE_AA)
 
-                # Add the eyes to the display
-                # display_mask = ROI_mask + leye_mask + reye_mask
-                display_mask = face_mask
-                display_frame = cv2.bitwise_and(image, image, mask=display_mask)
-        else:
-            print('Frame failed, skipping...')
-            continue
+                    ROI_mask = face_mask - face_top_mask - mouth_mask
 
-        frame = HRM.get_bpm(ROI_colour)
-        BD.get_ratio(total_landmarks)
-        ET.track_eyes(display_frame, [left_eye, right_eye])
-        pointer_frame = HT.get_angular_position(detection.landmark, display_frame)
-        display_frame = ET.draw_circles(display_frame)
+                    # Use the mask to get the coloured region of the original frame for HRM
+                    ROI_colour = cv2.bitwise_and(image, image, mask=ROI_mask)
 
-        # Finished processing, record frame time
-        new_frame_time = time.time()
-        fps = 1 / (new_frame_time - prev_frame_time)
-        prev_frame_time = new_frame_time
-        print(int(fps))
+                    # Add the eyes to the display
+                    # display_mask = ROI_mask + leye_mask + reye_mask
+                    display_mask = face_mask
+                    display_frame = cv2.bitwise_and(image, image, mask=display_mask)
+            else:
+                print('Frame failed, skipping...')
+                continue
 
-        #cv2.imshow('eye_tracking', eye_frame)
-        #cv2.imshow('HRM frame', frame)
-        #cv2.imshow('Display_Image', pointer_frame)
+            frame = HRM.get_bpm(ROI_colour)
+            BD.get_ratio(total_landmarks)
+            ET.track_eyes(display_frame, [left_eye, right_eye])
+            pointer_frame = HT.get_angular_position(detection.landmark, display_frame)
+            display_frame = ET.draw_circles(display_frame)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # Finished processing, record frame time
+            new_frame_time = time.time()
+            fps = 1 / (new_frame_time - prev_frame_time)
+            prev_frame_time = new_frame_time
+            print(int(fps))
 
-print('Detected Blinks: ', BD.blink_counter)
-print(ET.data)
-#cap.release()
-cv2.destroyAllWindows()
+            #cv2.imshow('eye_tracking', eye_frame)
+            #cv2.imshow('HRM frame', frame)
+            #cv2.imshow('Display_Image', pointer_frame)
 
-fvs.stop()
-save_data(HRM, HT, BD, ET, None, features_path)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+    print('Detected Blinks: ', BD.blink_counter)
+    print(ET.data)
+    #cap.release()
+    cv2.destroyAllWindows()
+
+    fvs.stop()
+    save_data(HRM, HT, BD, ET, None, features_path)
