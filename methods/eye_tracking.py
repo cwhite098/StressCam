@@ -4,19 +4,22 @@ import pandas as pd
 
 
 class Eye:
-    def __init__(self):
+    def __init__(self, name):
         self.tracker = 0
         self.circles = None
+        self.threshold = 25
         self.saved_prev = None
         self.coords = []
+        self.name = name
+        self.history = []
 
     def get_boxes(self):
         """
         Find the bounding box given an eye mask
         :return: the coordinates of the boxes
         """
-        x_min, y_min, x_max, y_max = min(self.coords[:, 0]), min(self.coords[:, 1]), max(self.coords[:, 0]), max(
-            self.coords[:, 1])
+        x_min, y_min, x_max, y_max = min(self.coords[:, 0]), min(self.coords[:, 1]), \
+                                     max(self.coords[:, 0]), max(self.coords[:, 1])
         return x_min, y_min, x_max, y_max
 
 
@@ -43,13 +46,12 @@ class EyeTracker:
         #
         # self.detector = cv2.SimpleBlobDetector_create(detector_params)
 
-        self.l_eye = Eye()
-        self.r_eye = Eye()
+        self.l_eye = Eye('left eye')
+        self.r_eye = Eye('right eye')
         self.threshold = 20
         self.saved_prev = None
         self.timer = 0
-
-        self.data = pd.DataFrame(columns=['left eye', 'right eye'])
+        self.data = []
 
     def track_eyes(self, image, eyes):
         """
@@ -57,14 +59,14 @@ class EyeTracker:
         TODO: MAKE THE PARAMS PROPORTIONAL TO IMAGE SIZE
         :param image: Frame
         :param eyes: Eye mask coordinates
-        :return: Frame with the circles plotted (will change this to the circles of the image)
+        :return: Circle coordinates relative to the eye mask and radius for the frame.
         """
 
         self.l_eye.coords, self.r_eye.coords = eyes
-
+        outs = [None, None]
         self.eye_list = [self.l_eye, self.r_eye]
 
-        for eye in self.eye_list:
+        for idx, eye in enumerate(self.eye_list):
             x_min, y_min, x_max, y_max = eye.get_boxes()
             # Get bounding box around the eye
             # hard coded added extra bits (improves performance)
@@ -80,30 +82,44 @@ class EyeTracker:
 
                 # Find the circles, using Hough Transform. May have to adapt these params
                 circ = cv2.HoughCircles(grey_eye_box, cv2.HOUGH_GRADIENT, 1, 20,
-                                        param1=np.mean(grey_eye_box), param2=self.threshold,
+                                        param1=np.mean(grey_eye_box), param2=eye.threshold,
                                         minRadius=int(eye_width / 5),
                                         maxRadius=int(eye_width / 4))
             except:
                 circ = None
 
+            # Assigning value to the circle variable
+            # Retrieve previous value of circle if there is no circle found
             if circ is None:
                 if eye.tracker < 20:
                     eye.circles = eye.saved_prev
+                # Slowly reduce the tolerance/threshold if none are found
                 elif eye.tracker % 5 == 0:
-                    self.threshold -= 1
+                    eye.threshold -= 1
                 eye.tracker += 1
+
+            # Discard result if multiple are found, increase threshold
             elif len(circ) != 1:
                 if eye.tracker < 20:
                     eye.circles = eye.saved_prev
                 eye.tracker += 1
-                self.threshold+=1
+                eye.threshold += 1
+
+            # Single circle found, reset timer and threshold
             else:
-                self.threshold = 25
+                eye.circles = circ
+                eye.threshold = 25
                 eye.saved_prev = circ
                 eye.tracker = 0
 
-        # self.data.append([self.l_eye, self.r_eye])
+            # Save value in eye history list and list for outputs
+            if eye.circles is not None:
+                eye.history.append(eye.circles[0][:][:][0])
+                outs[idx] = eye.circles[0][:][:][0]
+            else:
+                eye.history.append(None)
 
+        return outs
         # ================= Find the keys using blob detection points (OLD, DIDN'T REALLY WORK) ==================
         #
         # blur = cv2.medianBlur(grey_eye_box, 3)
@@ -138,7 +154,13 @@ class EyeTracker:
                     cv2.circle(image, (i[0] + x_min - 15, i[1] + y_min - 15), i[2], (0, 255, 0), 2)
                     # draw the center of the circle
                     cv2.circle(image, (i[0] + x_min - 15, i[1] + y_min - 15), 2, (0, 0, 255), 3)
-            else:
-                pass
 
         return image
+
+    def get_history(self):
+        """
+        Assigns the circle data to the data attribute.
+        :return: Data attribute
+        """
+        self.data = [self.l_eye.history, self.r_eye.history]
+        return self.data

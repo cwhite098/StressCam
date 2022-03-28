@@ -118,7 +118,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
 
         frame = HRM.get_bpm(ROI_colour)
         BD.get_ratio(total_landmarks)
-        ET.track_eyes(display_frame, [left_eye, right_eye])
+        l_eye, r_eye = ET.track_eyes(display_frame, [left_eye, right_eye])
         pointer_frame = HT.get_angular_position(detection.landmark, display_frame)
         display_frame = ET.draw_circles(display_frame)
 
@@ -136,7 +136,7 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
             break
 
 print('Detected Blinks: ', BD.blink_counter)
-print(ET.data)
+ET.get_history()
 cap.release()
 cv2.destroyAllWindows()
 HRM.save_data('HRM_data.csv')
