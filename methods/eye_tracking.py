@@ -90,6 +90,7 @@ class EyeTracker:
 
             # Assigning value to the circle variable
             # Retrieve previous value of circle if there is no circle found
+
             if circ is None:
                 if eye.tracker < 20:
                     eye.circles = eye.saved_prev
@@ -99,7 +100,8 @@ class EyeTracker:
                 eye.tracker += 1
 
             # Discard result if multiple are found, increase threshold
-            elif len(circ) != 1:
+            elif len(circ[0]) != 1:
+                print(circ)
                 if eye.tracker < 20:
                     eye.circles = eye.saved_prev
                 eye.tracker += 1
@@ -108,16 +110,27 @@ class EyeTracker:
             # Single circle found, reset timer and threshold
             else:
                 eye.circles = circ
-                eye.threshold = 25
+                eye.threshold = 20
                 eye.saved_prev = circ
                 eye.tracker = 0
 
             # Save value in eye history list and list for outputs
+
             if eye.circles is not None:
-                eye.history.append(eye.circles[0][:][:][0])
-                outs[idx] = eye.circles[0][:][:][0]
+
+                # Find midpoints of eye box
+                x_mid, y_mid = (x_max - x_min) / 2, (y_max - y_min) / 2
+                # 15 is added to box for better circle detection, so remove this when scaling
+                x = eye.circles[0][:][:][0][0] - 15
+                y = eye.circles[0][:][:][0][1] - 15
+                # Scale position between -1,1, (0,0) is centre.
+                x, y = 2 * (x - x_mid) / (x_max - x_min), 2 * (y_mid - y) / (y_max - y_min)
+
+                eye_coords = np.array([x, y])
+                eye.history.append(eye_coords)
+                outs[idx] = eye_coords
             else:
-                eye.history.append(None)
+                eye.history.append([np.nan, np.nan])
 
         return outs
         # ================= Find the keys using blob detection points (OLD, DIDN'T REALLY WORK) ==================

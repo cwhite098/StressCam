@@ -40,6 +40,8 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     POS_signal = signal[0,:] + (coeff*signal[1,:])
     POS_signal = POS_signal - np.mean(POS_signal)
 
+    eye_array = ET.get_history()
+
     df = pd.DataFrame()
     df['POS'] = POS_signal # this POS signal needs processing
     df['EYE_RATIO'] = BMD.ratios_list
@@ -49,6 +51,14 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['HEAD_PITCH'] = HT.x_list
     df['HEAD_YAW'] = HT.y_list
     df['HEAD_TRANS'] = HT.translation_list
+    
+    l_eye = eye_array[0]
+    r_eye = eye_array[1]
+
+    df['LEYE_X'] = l_eye[:,0]
+    df['LEYE_Y'] = l_eye[:,1]
+    df['REYE_X'] = r_eye[:,0]
+    df['REYE_Y'] = r_eye[:,1]
 
     df.to_csv(path)
 

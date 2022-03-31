@@ -1,5 +1,9 @@
 import numpy as np
 import cv2
+import platform
+if platform.system() == 'Darwin':   # fixes plots not working on mac
+    import matplotlib
+    matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 import heartpy as hp
