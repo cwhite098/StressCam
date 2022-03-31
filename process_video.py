@@ -51,6 +51,7 @@ path = 'data/videos/'
 # Set up the loop here to process multiple video files
 videos = os.listdir(path)
 
+# Change the index in videos to not process already processed videos
 for video in videos[6:]:
     print(video)
 

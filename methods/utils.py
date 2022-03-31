@@ -51,8 +51,14 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['HEAD_PITCH'] = HT.x_list
     df['HEAD_YAW'] = HT.y_list
     df['HEAD_TRANS'] = HT.translation_list
-    df['L_IRIS'] = eye_array[0,:]
-    df['R_IRIS'] = eye_array[1,:]
+    
+    l_eye = eye_array[0]
+    r_eye = eye_array[1]
+
+    df['LEYE_X'] = l_eye[:,0]
+    df['LEYE_Y'] = l_eye[:,1]
+    df['REYE_X'] = r_eye[:,0]
+    df['REYE_Y'] = r_eye[:,1]
 
     df.to_csv(path)
 
