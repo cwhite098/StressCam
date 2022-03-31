@@ -26,9 +26,9 @@ class stroop_test:
         self.label = Label(self.root, text=self.word, fg=self.colour, font=("Comic Sans MS", 200), width =8, height=2)
         self.label.pack()
 
-        self.instructions = PhotoImage(file='instructions.png')
-        self.cross = PhotoImage(file='big-red-cross.png')
-        self.tick = PhotoImage(file='big-green-tick.png')
+        self.instructions = PhotoImage(file='stroop/instructions.png')
+        self.cross = PhotoImage(file='stroop/big-red-cross.png')
+        self.tick = PhotoImage(file='stroop/big-green-tick.png')
 
         self.wrong = Label(self.root, image=self.cross, width =8000, height=2000)
         self.right = Label(self.root, image=self.tick, width =8000, height=2000)
