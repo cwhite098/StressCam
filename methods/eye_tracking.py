@@ -130,7 +130,7 @@ class EyeTracker:
                 eye.history.append(eye_coords)
                 outs[idx] = eye_coords
             else:
-                eye.history.append(np.nan)
+                eye.history.append([np.nan, np.nan])
 
         return outs
         # ================= Find the keys using blob detection points (OLD, DIDN'T REALLY WORK) ==================
