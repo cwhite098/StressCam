@@ -50,7 +50,7 @@ HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=True, process_si
 BD = Eyes_Mouth_Detector(show_plots=True)
 HT = Head_Tracker(realWidth, realHeight, show_plots=True)
 ET = EyeTracker()
-RR = Resp_Rate(animate=True)
+RR = Resp_Rate()
 
 cv2.namedWindow("Display_Image", cv2.WINDOW_NORMAL)
 cv2.namedWindow('HRM frame', cv2.WINDOW_NORMAL)
@@ -58,7 +58,7 @@ cv2.namedWindow('HRM frame', cv2.WINDOW_NORMAL)
 
 
 # init model
-RR.live_feed_init()
+RR.live_feed_init(cap)
 RR.animate_init()
 with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
                            refine_landmarks=True, min_detection_confidence=0.5) as face_detection:
@@ -129,11 +129,12 @@ with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
         l_eye, r_eye = ET.track_eyes(display_frame, [left_eye, right_eye])
         pointer_frame = HT.get_angular_position(detection.landmark, display_frame)
         display_frame = ET.draw_circles(display_frame)
-        resp_frame = RR.live_feed_per_frame_loop()
+        resp_frame = RR.live_feed_per_frame_loop(image, fps)
 
         # Finished processing, record frame time
         new_frame_time = time.time()
         fps = 1 / (new_frame_time - prev_frame_time)
+        print(fps)
         prev_frame_time = new_frame_time
         #print(int(fps))
 

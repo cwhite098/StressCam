@@ -12,31 +12,23 @@ from time import perf_counter, time
 from threading import Thread
 
 class Resp_Rate:
-    def __init__(self, refresh_rate=30, win_size=300, vid=None, animate=False, ROI=None):
+    def __init__(self, refresh_rate=30, win_size=300, vid=None, ROI=None):
         self.vid = vid
-        self.animate = animate
         self.ROI = ROI
         self.First = True
         self.refresh_rate = refresh_rate 
         self.win_size = win_size # number of frame on plot
-        self.fps = 0
+        self.fps = 15
         self.p_y_f = []
-
-    def average_intensity(self, frame):
-        p_f = [(sum([sum([frame[y, x, i] for i in range(3)]) for x in range(self.x_len)]))/self.x_len for y in range(self.y_len)]
-        p_f_detrend = signal.detrend(p_f, type='constant')
-        self.p_y_f.append(p_f_detrend)
 
     def resp_pattern(self, frames):
         '''Extract respiration pattern'''
         self.y_len, self.x_len, _ = frames[0].shape
         sd_list = []
-        threads = [Thread(target=self.average_intensity, args=(frame,))
-        for frame in frames] # Creat thread for each frame (limit number of thread in the futrue)
-        for t in threads:
-            t.start()
-        for t in threads:
-            t.join()
+        for frame in frames:
+            p_f = np.sum(np.sum(frame, axis=2), axis=1)/self.x_len
+            p_f_detrend = signal.detrend(p_f, type='constant')
+            self.p_y_f.append(p_f_detrend)
         self.p_y_f = np.array(self.p_y_f)
         for y in range(self.y_len):
             sd_list.append(np.std(self.p_y_f[:, y]))
@@ -48,42 +40,21 @@ class Resp_Rate:
         b, a = signal.butter(3, (0.05, 2), fs=30, btype='bandpass', analog=False)
         y = signal.lfilter(b, a, p_f)
         self.p_norm = (y-np.mean(y))/np.std(y)
-    
-    # def average_intensity_per_row(self, frame, y, p_f):
-    #     p_f[y] = sum([sum([frame[y, x, i] for i in range(3)]) for x in range(self.x_len)])/self.x_len
 
     def resp_pattern_per_frame(self, frame, fps):
         # Calculate averaged intensity componenets
         self.p_y_f[0:-1,:] = self.p_y_f[1:,:] # move values forward by one row
-        # s = perf_counter()
-        p_f = [(sum([sum([frame[y, x, i] for i in range(3)]) for x in range(self.x_len)]))/self.x_len for y in range(self.y_len)]
-        # print(perf_counter() - s)
-        # s = perf_counter()
-        # p_f = [0] * self.y_len
-        # threads = [Thread(target=self.average_intensity_per_row, args=(y, frame, p_f))
-        # for y in range(self.y_len)] # Creat thread for each frame (limit number of thread in the futrue)
-        # for t in threads:
-        #     t.start()
-        # for t in threads:
-        #     t.join()
+        p_f = np.sum(np.sum(frame, axis=2), axis=1)/self.x_len
         p_f_detrend = signal.detrend(p_f, type='constant')
-        # print(perf_counter() - s)
-        # s = perf_counter()
         self.p_y_f[-1,:] = p_f_detrend # (refresh_rate(n frames) x y_len)
         sd_list = [np.std(self.p_y_f[:, y]) for y in range(self.y_len)] # (y_lne x 1)
         largest_sd = nlargest(int(0.05*self.y_len), sd_list)
         idx = [np.where(sd_list==i) for i in largest_sd]
         p_5per = self.p_y_f[:, idx]
-        # print(perf_counter() - s)
-        # s = perf_counter()
         p_f = [np.mean(i) for i in p_5per]
         b, a = signal.butter(3, (0.05, 2), fs=15, btype='bandpass', analog=False)
         y = signal.lfilter(b, a, p_f)
-        # print(perf_counter() - s)
-        # s = perf_counter()
         self.p_norm = (y-np.mean(y))/np.std(y) # (refresh_rate x 1)
-        # print(perf_counter() - s)
-        # s = perf_counter()
         pass
 
     def resp_rate(self, n_frame, fps):
@@ -142,34 +113,28 @@ class Resp_Rate:
     def live_feed_per_frame_animate(self, i):
         start = perf_counter()
         for i in range(self.refresh_rate):
-            # s = perf_counter()
             _, cur = self.cap.read()
-            cur = cv.rectangle(cur, (self.ROI[0], self.ROI[0]+self.ROI[2]), (self.ROI[1], self.ROI[1]+self.ROI[3]), (0, 0, 255))
-            cv.imshow('frame', cur)
+            cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
+            int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
+            cv.imshow('frame', cropped)
             if cv.waitKey(1) == ord('q'):
                 self.cap.release()
                 cv.destroyAllWindows()
-            cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
-            int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
-            self.resp_pattern_per_frame(cropped)
-            # print(perf_counter() - s)
-        self.fps = self.refresh_rate / (perf_counter() - start)
+            self.resp_pattern_per_frame(cropped, self.fps)
         print(self.fps)
-        bpm = self.resp_rate(self.win_size)
+        bpm = self.resp_rate(self.win_size, self.fps)
         self.sig.set_ydata(self.p_norm)
         self.rate.set_text('bpm: %.2f' % bpm)
         self.fps_text.set_text('fps: %.2f' % self.fps)
+        self.fps = self.refresh_rate / (perf_counter() - start)
         return self.sig,
     
     def live_feed_per_frame_loop(self, cur, fps):
-        start = perf_counter()
         cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
         int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
-        cv.imshow('Respframe', cropped)
-        s = time()
         self.resp_pattern_per_frame(cropped, fps)
-        print(time()-s)
         bpm = self.resp_rate(self.win_size, fps)
+
         self.fig.canvas.restore_region(self.background)
         self.sig.set_ydata(self.p_norm)
         self.rate.set_text('bpm: %.2f' % bpm)
@@ -210,8 +175,6 @@ class Resp_Rate:
     def live_feed_init(self, cap):
         '''Initialise ROI'''
         if self.ROI is None:
-            # cap = cv.VideoCapture()
-            # cap.open(0, cv.CAP_DSHOW)
             _, cur = cap.read()
             self.ROI = cv.selectROI('ROI', cur)
             cv.destroyWindow('ROI')
@@ -229,20 +192,19 @@ class Resp_Rate:
             cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
             int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
             self.p_y_f[0:-1,:] = self.p_y_f[1:,:] # move values forward by one row
-            p_f = [(sum([sum([cropped[y, x, i] for i in range(3)]) for x in range(self.x_len)]))/self.x_len for y in range(self.y_len)]
+            p_f = np.sum(np.sum(cropped, axis=2), axis=1)/self.x_len
             p_f_detrend = signal.detrend(p_f, type='constant')
             self.p_y_f[-1,:] = p_f_detrend # (refresh_rate(n frames) x y_len)
         self.fps = 10 / (perf_counter() - start)
 
     def live_feed(self):
         '''Process online input'''
-        self.live_feed_init()
-        if self.animate:
-            self.animate_init()
-            ain = FuncAnimation(self.fig, self.live_feed_per_frame_animate)
-            plt.show()
-        else:
-            self.live_feed_per_frame()
+        self.cap = cv.VideoCapture()
+        self.cap.open(0, cv.CAP_DSHOW)
+        self.live_feed_init(self.cap)
+        self.animate_init()
+        ain = FuncAnimation(self.fig, self.live_feed_per_frame_animate)
+        plt.show()
         self.cap.release()
         cv.destroyAllWindows()
 
@@ -253,5 +215,5 @@ class Resp_Rate:
             self.vid_feed()
 
 # Resp = Resp_Rate(vid='Recording2_Trim.mp4', ROI=(534, 465, 224, 173))
-# Resp = Resp_Rate(animate=True)
+# Resp = Resp_Rate()
 # p_list = Resp.analysis_feed()
