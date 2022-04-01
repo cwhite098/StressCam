@@ -81,7 +81,16 @@ print(X.shape)
 Sometimes the eye ratio returns a +inf - this is problematic
 For now, just remove the inf and interpolate to fill in missing value
 '''
+
+##### REMOVE NANS TOO
+
 where_is_pinf = np.array(np.where(np.isposinf(X)))
+for i in range(len(where_is_pinf[0])):
+    X[where_is_pinf[0,i], where_is_pinf[1,i], where_is_pinf[2,i]] = np.mean(
+        (X[where_is_pinf[0,i]-1, where_is_pinf[1,i], where_is_pinf[2,i]], X[where_is_pinf[0,i]+1, where_is_pinf[1,i], where_is_pinf[2,i]] )        
+        )
+
+where_is_pinf = np.array(np.where(np.isnan(X)))
 for i in range(len(where_is_pinf[0])):
     X[where_is_pinf[0,i], where_is_pinf[1,i], where_is_pinf[2,i]] = np.mean(
         (X[where_is_pinf[0,i]-1, where_is_pinf[1,i], where_is_pinf[2,i]], X[where_is_pinf[0,i]+1, where_is_pinf[1,i], where_is_pinf[2,i]] )        
@@ -157,10 +166,12 @@ X_test_transform = rocket.transform(X_test)
 # Re-add HRV features + remove any NaNs that come from bad signals
 train_HRV_features = pd.DataFrame(train_HRV_features)
 X_train_transform = pd.concat([X_train_transform, train_HRV_features.iloc[:,1:]], axis=1)
+X_train_transform.replace([np.inf, -np.inf], np.nan, inplace=True)
 X_train_transform = pd.DataFrame(X_train_transform).fillna(0)
 
 test_HRV_features = pd.DataFrame(test_HRV_features)
 X_test_transform = pd.concat([X_test_transform, test_HRV_features.iloc[:,1:]], axis=1)
+X_test_transform.replace([np.inf, -np.inf], np.nan, inplace=True)
 X_test_transform = pd.DataFrame(X_test_transform).fillna(0)
 
 

@@ -52,8 +52,8 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['HEAD_YAW'] = HT.y_list
     df['HEAD_TRANS'] = HT.translation_list
     
-    l_eye = eye_array[0]
-    r_eye = eye_array[1]
+    l_eye = np.array(eye_array)[0]
+    r_eye = np.array(eye_array)[1]
 
     df['LEYE_X'] = l_eye[:,0]
     df['LEYE_Y'] = l_eye[:,1]

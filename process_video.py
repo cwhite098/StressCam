@@ -17,8 +17,6 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_face = mp.solutions.face_detection
 mp_face_mesh = mp.solutions.face_mesh
 
-
-
 fps = 35
 #cap = cv2.VideoCapture(video_path)
 # The device number might be 0 or 1 depending on the device and the webcam
@@ -52,19 +50,21 @@ path = 'D:/UBFC-Phys_Dataset/'
 videos = os.listdir(path)
 
 done_videos = os.listdir('data/extracted_data')
+done_str = []
 for v in done_videos:
     vid_str = v[:-4]
-    done_videos.append(vid_str)
-    done_videos.pop(0)
+    done_str.append(vid_str)
+
 
 # Change the index in videos to not process already processed videos
 for video in videos:
-    print(video)
+    
 
-    if video[:-4] not in done_videos:
+    if video[:-4] not in done_str:
+        print(video)
 
         video_path = path+video
-        features_path = 'data/extracted_data/' + video_path[-14:-4] + '.csv'
+        features_path = 'data/extracted_data/' + video[:-4] + '.csv'
 
         # Initialise frame loader
         fvs = FileVideoStream(video_path).start()
