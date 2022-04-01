@@ -3,8 +3,8 @@ from stroop.stroop import *
 import multiprocessing
 from threading import Timer
 from os import path
-global stop
 
+global stop
 stop = False
 
 def start_stroop():
@@ -35,9 +35,9 @@ def main(name='test',timeout=10):
 
     """Creating new filenames for videos in format '(name)_(video no.).avi'  """
     i = 0
-    while path.exists(f"data/{name}_{i}.avi"):
+    while path.exists(f"data/videos/{name}_{i}.avi"):
         i += 1
-    filepath = f'data/{name}_{i}.avi'
+    filepath = f'data/videos/{name}_{i}.avi'
     output = cv2.VideoWriter(filepath, fourcc, fps, (realWidth, realHeight))
 
     stroop_thread = multiprocessing.Process(target=start_stroop)
@@ -60,4 +60,4 @@ def main(name='test',timeout=10):
     output.release()
 
 if __name__ == '__main__':
-    main(name='test',timeout=20) # could also label file with difficulty level
+    main(name='finn',timeout=20) # could also label file with difficulty level
