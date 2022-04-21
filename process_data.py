@@ -184,6 +184,8 @@ X_test_transform = scaler.transform(X_test_transform)
 # Do PCA and have a look
 pca = PCA(n_components=10)
 X_train_pca = pca.fit_transform(X_train_transform)
+X_test_pca = pca.transform(X_test_transform)
+
 # Get the indexes for the different classes
 T1_idx = [i for i,x in enumerate(y_train) if x == 0]
 T2_idx = [i for i,x in enumerate(y_train) if x == 1]
