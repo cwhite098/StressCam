@@ -1,7 +1,5 @@
-# %%
 from heapq import nlargest
-from socket import NI_DGRAM
-from tkinter import SEL_FIRST
+from shutil import ExecError
 from matplotlib import animation
 from scipy import signal
 import cv2 as cv
@@ -10,9 +8,10 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from time import perf_counter, time
 from threading import Thread
+import mediapipe as mp
 
 class Resp_Rate:
-    def __init__(self, refresh_rate=30, win_size=300, vid=None, ROI=None):
+    def __init__(self, cap=None, ROI_buffer_y_upper=70, ROI_buffer_y_lower=30, refresh_rate=30, win_size=300, vid=None, ROI=None):
         self.vid = vid
         self.ROI = ROI
         self.First = True
@@ -20,6 +19,39 @@ class Resp_Rate:
         self.win_size = win_size # number of frame on plot
         self.fps = 15
         self.p_y_f = []
+        self.p_norm = np.array([0] * self.win_size)
+        self.cap = cap
+        self.ROI_buffer_y_upper = ROI_buffer_y_upper
+        self.ROI_buffer_y_lower = ROI_buffer_y_lower
+
+        '''Initialise plotting canvas'''
+        # plt.ion
+        self.fig, self.ax = plt.subplots(1, 1)
+        self.ax.set_xlim(0, self.win_size)
+        self.ax.set_ylim(-2.5, 2.5)
+        self.sig, = self.ax.plot(self.p_norm)
+        self.rate = self.ax.text(0.5, 2.3, '')
+        self.fps_text = self.ax.text(0.5, 2, '')
+        self.fig.show()
+        self.fig.canvas.draw()
+        self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
+
+    def find_ROI(self):
+        '''Find ROI'''
+        _, cur = self.cap.read()
+        image_height, image_width, _ = cur.shape
+        mp_holistic = mp.solutions.holistic
+        with mp_holistic.Holistic() as holistic:
+            results = holistic.process(cv.cvtColor(cur, cv.COLOR_BGR2RGB))
+            shoulder_xs, shoulder_ys = (results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].x * image_width,
+            results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].x * image_width), (
+                results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].y * image_height,
+                results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].y * image_height)
+        if max(shoulder_ys)+self.ROI_buffer_y_lower > image_height:
+            self.ROI_buffer_y_lower = image_height - max(shoulder_ys)
+        self.ROI = [int(shoulder_xs[1]), int(min(shoulder_ys)-self.ROI_buffer_y_upper),
+        int(shoulder_xs[0]), int(max(shoulder_ys)+self.ROI_buffer_y_lower)]
+        self.y_len, self.x_len = (int(self.ROI[3]-self.ROI[1]), int(shoulder_xs[0]-shoulder_xs[1]))
 
     def resp_pattern(self, frames):
         '''Extract respiration pattern'''
@@ -49,10 +81,10 @@ class Resp_Rate:
         self.p_y_f[-1,:] = p_f_detrend # (refresh_rate(n frames) x y_len)
         sd_list = [np.std(self.p_y_f[:, y]) for y in range(self.y_len)] # (y_lne x 1)
         largest_sd = nlargest(int(0.05*self.y_len), sd_list)
-        idx = [np.where(sd_list==i) for i in largest_sd]
+        idx = [np.where(sd_list==i)[0] for i in largest_sd]
         p_5per = self.p_y_f[:, idx]
         p_f = [np.mean(i) for i in p_5per]
-        b, a = signal.butter(3, (0.05, 2), fs=15, btype='bandpass', analog=False)
+        b, a = signal.butter(3, (0.05, 2), fs=15 if fps<4 else fps, btype='bandpass', analog=False)
         y = signal.lfilter(b, a, p_f)
         self.p_norm = (y-np.mean(y))/np.std(y) # (refresh_rate x 1)
         pass
@@ -111,11 +143,11 @@ class Resp_Rate:
         cv.destroyAllWindows()
     
     def live_feed_per_frame_animate(self, i):
+        '''Function for live feed with animated bmp graph'''
         start = perf_counter()
         for i in range(self.refresh_rate):
             _, cur = self.cap.read()
-            cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
-            int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
+            cropped = cur[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
             cv.imshow('frame', cropped)
             if cv.waitKey(1) == ord('q'):
                 self.cap.release()
@@ -130,23 +162,38 @@ class Resp_Rate:
         return self.sig,
     
     def live_feed_per_frame_loop(self, cur, fps):
-        cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
-        int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
+        cropped = cur[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
         self.resp_pattern_per_frame(cropped, fps)
-        bpm = self.resp_rate(self.win_size, fps)
+
+        if self.init is True and self.f>=self.refresh_rate:
+            self.bpm = self.resp_rate(self.win_size, fps)
+            text = 'bpm: '+str(round(self.bpm, 2))
+            self.init, self.f = False, 1
+        elif self.f>=self.refresh_rate:
+            self.bpm = self.resp_rate(self.win_size, fps)
+            text = 'bpm: '+str(round(self.bpm, 2))
+            self.f = 1
+        elif self.init is True:
+            text = 'Calculating bpm...'
+            self.f += 1
+        else:
+            text = 'bpm: '+str(round(self.bpm, 2))
+            self.f += 1
+        cropped = cv.putText(cropped, text, (5, 30), cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1, cv.LINE_AA)
+        # print(self.f)
 
         self.fig.canvas.restore_region(self.background)
         self.sig.set_ydata(self.p_norm)
-        self.rate.set_text('bpm: %.2f' % bpm)
-        self.fps_text.set_text('fps: %.2f' % fps)
+        # self.rate.set_text('bpm: %.2f' % bpm)
+        # self.fps_text.set_text('fps: %.2f' % fps)
         self.ax.draw_artist(self.sig)
-        self.ax.draw_artist(self.fps_text)
+        # self.ax.draw_artist(self.fps_text)
         self.fig.canvas.blit(self.ax.bbox)
         return cropped
     
     def live_feed_per_frame(self):
         # 17 sec ~ 3 cycle
-        while True:
+        while 1:
             start = perf_counter()
             _, cur = self.cap.read()
             cv.imshow('frame', cur)
@@ -157,40 +204,18 @@ class Resp_Rate:
             self.resp_pattern_per_frame(cropped)
             print(self.p_norm[-1])
     
-    def animate_init(self):
-        '''Initial animation plot'''
-        plt.ion
-        # self.fig = plt.figure()
-        # self.ax = plt.axes(xlim=(0, self.win_size), ylim=(-2.5, 2.5))
-        self.fig, self.ax = plt.subplots(1, 1)
-        self.ax.set_xlim(0, self.win_size)
-        self.ax.set_ylim(-2.5, 2.5)
-        self.sig, = self.ax.plot(self.p_norm)
-        self.rate = self.ax.text(0.5, 2.3, '')
-        self.fps_text = self.ax.text(0.5, 2, '')
-        self.fig.show()
-        self.fig.canvas.draw()
-        self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
-    
-    def live_feed_init(self, cap):
+    def live_feed_init(self):
         '''Initialise ROI'''
-        if self.ROI is None:
-            _, cur = cap.read()
-            self.ROI = cv.selectROI('ROI', cur)
-            cv.destroyWindow('ROI')
-            self.frame_y, self.frame_x, _ = cur.shape
-            self.y_len, self.x_len = (self.ROI[3], self.ROI[2])
+        self.find_ROI()
         '''Initialise matrices'''
         if self.vid is None:
             self.p_y_f = np.array([[0] * self.y_len] * self.win_size)
-            # self.cropped_list = np.array([[0]] * win_size)
-            self.p_norm = np.array([0] * self.win_size)
+        self.init, self.f = True, 1
         '''Initialise matrix p to prevent row having the same value'''
         start = perf_counter()
         for i in range(10):
-            _, cur = cap.read()
-            cropped = cur[int(self.ROI[1]):int(self.ROI[1]+self.ROI[3]), 
-            int(self.ROI[0]):int(self.ROI[0]+self.ROI[2])]
+            _, cur = self.cap.read()
+            cropped = cur[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
             self.p_y_f[0:-1,:] = self.p_y_f[1:,:] # move values forward by one row
             p_f = np.sum(np.sum(cropped, axis=2), axis=1)/self.x_len
             p_f_detrend = signal.detrend(p_f, type='constant')
@@ -201,7 +226,7 @@ class Resp_Rate:
         '''Process online input'''
         self.cap = cv.VideoCapture()
         self.cap.open(0, cv.CAP_DSHOW)
-        self.live_feed_init(self.cap)
+        self.live_feed_init()
         self.animate_init()
         ain = FuncAnimation(self.fig, self.live_feed_per_frame_animate)
         plt.show()
