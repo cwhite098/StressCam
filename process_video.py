@@ -41,13 +41,6 @@ face_top_idx = [243, 244, 245, 122, 6, 351, 465, 464, 463, 112, 26, 22, 23, 24, 
                 127, 341, 256, 252, 253, 254, 339, 255, 446, 265, 372, 264, 356, 389, 251, 284, 332, 297, 338, 10, 109,
                 67, 103, 54, 21, 162]
 
-# Initialise metric trackers
-HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=False, process_signal=False)
-BD = Eyes_Mouth_Detector(show_plots=False)
-HT = Head_Tracker(realWidth, realHeight, show_plots=False)
-ET = EyeTracker()
-RR = Resp_Rate(fps)
-
 path = 'D:/UBFC-Phys_Dataset/'
 # Set up the loop here to process multiple video files
 videos = os.listdir(path)
@@ -61,6 +54,13 @@ for v in done_videos:
 
 # Change the index in videos to not process already processed videos
 for video in videos:
+
+    # Initialise metric trackers
+    HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=False, process_signal=False)
+    BD = Eyes_Mouth_Detector(show_plots=False)
+    HT = Head_Tracker(realWidth, realHeight, show_plots=False)
+    ET = EyeTracker()
+    RR = Resp_Rate(fps)
     
 
     if video[:-4] not in done_str:
