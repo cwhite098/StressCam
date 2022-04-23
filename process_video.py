@@ -2,13 +2,14 @@ from methods.blink_mouth_detection import Eyes_Mouth_Detector
 from methods.heart_rate import Heart_Rate_Monitor
 from methods.head_tracker import Head_Tracker
 from methods.eye_tracking import EyeTracker
+from methods.respiratory_tracking import Resp_Rate
 import mediapipe as mp
 import cv2
 import numpy as np
 from stroop.stroop import *
 import time
 from methods.utils import get_hull, nothing, save_data
-from imutils.video import FileVideoStream
+from imutils.video import FileVideoStream, count_frames
 import os
 
 
@@ -44,6 +45,7 @@ HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=False, process_s
 BD = Eyes_Mouth_Detector(show_plots=False)
 HT = Head_Tracker(realWidth, realHeight, show_plots=False)
 ET = EyeTracker()
+RR = Resp_Rate()
 
 path = 'D:/UBFC-Phys_Dataset/'
 # Set up the loop here to process multiple video files
@@ -70,6 +72,8 @@ for video in videos:
         fvs = FileVideoStream(video_path).start()
         time.sleep(1.0)
 
+        frame_num = count_frames(video_path)
+
         # init model
         with mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1,
                                 refine_landmarks=True, min_detection_confidence=0.5) as face_detection:
@@ -77,6 +81,8 @@ for video in videos:
 
                 # Read the output from the webcam
                 image = fvs.read()
+                if image is None:
+                    break
                 face_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
                 leye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
                 reye_mask = np.zeros((realHeight, realWidth), dtype=np.uint8)
@@ -137,6 +143,7 @@ for video in videos:
                 ET.track_eyes(display_frame, [left_eye, right_eye])
                 pointer_frame = HT.get_angular_position(detection.landmark, display_frame)
                 display_frame = ET.draw_circles(display_frame)
+                RR.vid_feed_per_frame_analysis(image, fps, frame_num)
 
                 # Finished processing, record frame time
                 new_frame_time = time.time()
@@ -157,4 +164,4 @@ for video in videos:
         cv2.destroyAllWindows()
 
         fvs.stop()
-        save_data(HRM, HT, BD, ET, None, features_path)
+        save_data(HRM, HT, BD, ET, RR, features_path)
