@@ -81,9 +81,6 @@ print(X.shape)
 Sometimes the eye ratio returns a +inf - this is problematic
 For now, just remove the inf and interpolate to fill in missing value
 '''
-
-##### REMOVE NANS TOO
-
 where_is_pinf = np.array(np.where(np.isposinf(X)))
 for i in range(len(where_is_pinf[0])):
     X[where_is_pinf[0,i], where_is_pinf[1,i], where_is_pinf[2,i]] = np.mean(
