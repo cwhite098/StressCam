@@ -36,13 +36,12 @@ class Resp_Rate:
         self.fig.canvas.draw()
         self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
 
-    def find_ROI(self):
+    def find_ROI(self, img):
         '''Find ROI'''
-        _, cur = self.cap.read()
-        image_height, image_width, _ = cur.shape
+        image_height, image_width, _ = img.shape
         mp_holistic = mp.solutions.holistic
         with mp_holistic.Holistic() as holistic:
-            results = holistic.process(cv.cvtColor(cur, cv.COLOR_BGR2RGB))
+            results = holistic.process(cv.cvtColor(img, cv.COLOR_BGR2RGB))
             shoulder_xs, shoulder_ys = (results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].x * image_width,
             results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].x * image_width), (
                 results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].y * image_height,
@@ -102,45 +101,19 @@ class Resp_Rate:
         # f_Ri = [60/(min_idx_list[i][0]-min_idx_list[i-1][0]) for i in range(1, len(min_idx_list))]
         # ^FIX: min_idx_list[i] return tuple
         f_R = len(min_idx_list)/((n_frame/fps)/60) # number of breath / ((number of frame / 30 fps) / 60)
-        return f_R        
+        return f_R
 
-    def vid_feed(self):
+    def vid_feed_per_frame_analysis(self, frame, fps, frame_num):
+        if self.First:
+            '''Initialise ROI'''
+            self.find_ROI(frame)
+            '''Initialise matrices'''
+            self.p_y_f = np.array([[0] * self.y_len] * frame_num)
+            self.p_norm = np.array([0] * frame_num)
+            self.init, self.f, self.First = True, 1, False
         '''Process pre recorded video'''
-        start = perf_counter()
-        self.cap = cv.VideoCapture(self.vid)
-        if self.ROI is None:
-            # Select ROI manually
-            _, cur = self.cap.read()
-            ROI = cv.selectROI('ROI', cur)
-            cv.destroyWindow('ROI')
-        else:
-            ROI = self.ROI
-        # ROI = (534, 465, 224, 173)
-        cropped_list = []
-        n_frame = int(self.cap.get(cv.CAP_PROP_FRAME_COUNT)) 
-        for i in range(n_frame):
-            _, cur = self.cap.read()
-            if cur is None:
-                break
-            # cv.imshow('frame', cur)
-            cropped = cur[int(ROI[1]):int(ROI[1]+ROI[3]), 
-                            int(ROI[0]):int(ROI[0]+ROI[2])]
-            cropped_list.append(cropped)
-        print('Time spent for cropping: ', perf_counter()-start)
-        start = perf_counter()
-        cropped_list = np.array(cropped_list)
-        self.resp_pattern(cropped_list)
-        print('Time spent for pattern extraction: ', perf_counter()-start)
-        '''Plot fig'''
-        self.fig, (self.ax1, self.ax2) = plt.subplots(1, 2)
-        for col in range(self.y_len):
-            # self.ax0.plot(self.p_y[:, col])
-            self.ax1.plot(self.p_y_f[:, col]) 
-        self.sig = self.ax2.plot(self.p_norm)[0]
-        self.text = self.ax2.text(0.5, 2, round(self.resp_rate(n_frame), ndigits=5))
-        plt.show()
-        self.cap.release()
-        cv.destroyAllWindows()
+        cropped = frame[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
+        self.resp_pattern_per_frame(cropped, fps)
     
     def live_feed_per_frame_animate(self, i):
         '''Function for live feed with animated bmp graph'''
@@ -205,8 +178,9 @@ class Resp_Rate:
             print(self.p_norm[-1])
     
     def live_feed_init(self):
+        _, cur = self.cap.read()
         '''Initialise ROI'''
-        self.find_ROI()
+        self.find_ROI(cur)
         '''Initialise matrices'''
         if self.vid is None:
             self.p_y_f = np.array([[0] * self.y_len] * self.win_size)
@@ -228,7 +202,7 @@ class Resp_Rate:
         self.cap.open(0, cv.CAP_DSHOW)
         self.live_feed_init()
         self.animate_init()
-        ain = FuncAnimation(self.fig, self.live_feed_per_frame_animate)
+        ani = FuncAnimation(self.fig, self.live_feed_per_frame_animate)
         plt.show()
         self.cap.release()
         cv.destroyAllWindows()
@@ -237,7 +211,8 @@ class Resp_Rate:
         if self.vid is None:
             self.live_feed()
         else:
-            self.vid_feed()
+            # self.vid_feed()
+            pass
 
 # Resp = Resp_Rate(vid='Recording2_Trim.mp4', ROI=(534, 465, 224, 173))
 # Resp = Resp_Rate()
