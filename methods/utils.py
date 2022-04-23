@@ -48,7 +48,7 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['LEYEBROW_RATIO'] = BMD.l_eyebrow_ratio_list
     df['REYEBROW_RATIO'] = BMD.r_eyebrow_ratio_list
     df['MOUTH_RATIO'] = BMD.mouth_ratios_list
-    df['HEAD_PITCH'] = HT.x_
+    df['HEAD_PITCH'] = HT.x_list
     df['HEAD_YAW'] = HT.y_list
     df['HEAD_TRANS'] = HT.translation_list
     
