@@ -60,6 +60,8 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['REYE_X'] = r_eye[:,0]
     df['REYE_Y'] = r_eye[:,1]
 
+    df['RESP_SIGNAL'] = RT.p_norm
+
     df.to_csv(path)
 
 
