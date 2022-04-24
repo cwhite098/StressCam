@@ -45,17 +45,23 @@ class Resp_Rate:
         image_height, image_width, _ = img.shape
         results = holistic.process(cv.cvtColor(img, cv.COLOR_BGR2RGB))
 
-        shoulder_xs, shoulder_ys = (results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].x * image_width,
-        results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].x * image_width), (
-            results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].y * image_height,
-            results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].y * image_height)
+        if results.pose_landmarks:
+            shoulder_xs, shoulder_ys = (results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].x * image_width,
+            results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].x * image_width), (
+                results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].y * image_height,
+                results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].y * image_height)
 
-        if max(shoulder_ys)+self.ROI_buffer_y_lower > image_height:
-            self.ROI_buffer_y_lower = image_height - max(shoulder_ys)
+            if max(shoulder_ys)+self.ROI_buffer_y_lower > image_height:
+                self.ROI_buffer_y_lower = image_height - max(shoulder_ys)
 
-        self.ROI = [int(shoulder_xs[1]), int(min(shoulder_ys)-self.ROI_buffer_y_upper),
-        int(shoulder_xs[0]), int(max(shoulder_ys)+self.ROI_buffer_y_lower)]
-        self.y_len, self.x_len = (int(self.ROI[3]-self.ROI[1]), int(shoulder_xs[0]-shoulder_xs[1]))
+            self.ROI = [int(shoulder_xs[1]), int(min(shoulder_ys)-self.ROI_buffer_y_upper),
+            int(shoulder_xs[0]), int(max(shoulder_ys)+self.ROI_buffer_y_lower)]
+            self.y_len, self.x_len = (int(self.ROI[3]-self.ROI[1]), int(shoulder_xs[0]-shoulder_xs[1]))
+            self.First = False
+        else:
+            print('Cannot find shoulders, SKIPPING')
+            self.First = True
+            self.y_len = 1
 
     def resp_pattern(self, frames):
         '''Extract respiration pattern'''
@@ -122,10 +128,11 @@ class Resp_Rate:
             '''Initialise matrices'''
             self.p_y_f = np.array([[0] * self.y_len] * frame_num)
             self.p_norm = np.array([0] * frame_num)
-            self.init, self.f, self.First = True, 1, False
-        '''Process pre recorded video'''
-        cropped = frame[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
-        self.resp_pattern_per_frame(cropped, fps)
+            self.init, self.f = True, 1
+        if not self.First:
+            '''Process pre recorded video'''
+            cropped = frame[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
+            self.resp_pattern_per_frame(cropped, fps)
     
 
     
