@@ -8,7 +8,7 @@ global stop
 stop = False
 
 def start_stroop():
-    st = StroopTest(sound=True)
+    st = StroopTest(sound=False)
     st.start_screen()
 
 def break_loop(stroop_thread):
@@ -17,9 +17,9 @@ def break_loop(stroop_thread):
     stroop_thread.terminate()
 
 
-def main(name='test',timeout=10):
+def main(name, stressed, timeout=60):
     fps = 15
-    realWidth = 1280
+    realWidth = 1280    # I think these need to be the same size as the webcam output
     realHeight = 720
 
 
@@ -34,10 +34,15 @@ def main(name='test',timeout=10):
     fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
     """Creating new filenames for videos in format '(name)_(video no.).avi'  """
+    if stressed:
+        stress = 1
+    else:
+        stress = 0
+
     i = 0
-    while path.exists(f"data/videos/{name}_{i}.avi"):
+    while path.exists(f"data/videos/{name}_{stress}_{i}.avi"):
         i += 1
-    filepath = f'data/videos/{name}_{i}.avi'
+    filepath = f'data/videos/{name}_{stress}_{i}.avi'
     output = cv2.VideoWriter(filepath, fourcc, fps, (realWidth, realHeight))
 
     stroop_thread = multiprocessing.Process(target=start_stroop)
@@ -58,6 +63,13 @@ def main(name='test',timeout=10):
 
     cap.release()
     output.release()
+    stroop_thread.terminate()
 
 if __name__ == '__main__':
-    main(name='finn',timeout=20) # could also label file with difficulty level
+    """
+        timeout is length of video to record
+        changed stressed to True if playing high stress mode, false if not
+        videos are saved as 'name_(0/1)_number.avi' with 0 for not stressed, 1 for stressed
+    """
+
+    main(name='finn', stressed=True, timeout=60) #
