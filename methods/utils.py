@@ -60,7 +60,9 @@ def save_data(HRM, HT, BMD, ET, RT, path):
     df['REYE_X'] = r_eye[:,0]
     df['REYE_Y'] = r_eye[:,1]
 
-    df['RESP_SIGNAL'] = RT.p_norm
+    y = RT.p_norm[:df.shape[0]]
+    # could maybe also do with some filtering
+    df['RESP_SIGNAL'] = (y-np.mean(y))/np.std(y)
 
     df.to_csv(path)
 

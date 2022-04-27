@@ -75,7 +75,7 @@ class Head_Tracker:
 
 
 
-    def get_angular_position(self, landmarks, image):
+    def get_angular_position(self, landmarks, image, display=True):
         
         self.face_3d = []
         self.face_2d = []
@@ -126,13 +126,15 @@ class Head_Tracker:
         self.y_list.append(y)
         self.z_list.append(z)
 
-        # Display the nose direction
-        nose_3d_projection, jacobian = cv2.projectPoints(nose_3d, rot_vec, trans_vec, self.cam_mat, self.dist_mat)
+        if display:
 
-        p1 = (int(nose_2d[0]), int(nose_2d[1]))
-        p2 = (int(nose_2d[0] + y * 10) , int(nose_2d[1] - x * 10))
-        
-        cv2.line(image, p1, p2, (255, 0, 0), 3)
+            # Display the nose direction
+            nose_3d_projection, jacobian = cv2.projectPoints(nose_3d, rot_vec, trans_vec, self.cam_mat, self.dist_mat)
+
+            p1 = (int(nose_2d[0]), int(nose_2d[1]))
+            p2 = (int(nose_2d[0] + y * 10) , int(nose_2d[1] - x * 10))
+            
+            cv2.line(image, p1, p2, (255, 0, 0), 3)
 
         if len(self.x_list) > self.plotting_xdim and self.show_plots:
             self.update_plots()

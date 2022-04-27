@@ -3,11 +3,10 @@ import matplotlib.pyplot as plt
 import heartpy as hp
 import numpy as np
 import os
-from methods.utils import get_summary_stats
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sktime.transformations.panel.rocket import Rocket
-from sktime.datasets import load_basic_motions
+from sktime.transformations.panel.tsfresh import TSFreshFeatureExtractor
 from sktime.datatypes._panel._convert import from_3d_numpy_to_nested
 from sklearn.linear_model import RidgeClassifierCV
 from sklearn.decomposition import PCA
@@ -81,9 +80,6 @@ print(X.shape)
 Sometimes the eye ratio returns a +inf - this is problematic
 For now, just remove the inf and interpolate to fill in missing value
 '''
-
-##### REMOVE NANS TOO
-
 where_is_pinf = np.array(np.where(np.isposinf(X)))
 for i in range(len(where_is_pinf[0])):
     X[where_is_pinf[0,i], where_is_pinf[1,i], where_is_pinf[2,i]] = np.mean(
@@ -133,10 +129,14 @@ for example in X_train:
     # Bandpass filter the POS signal
     filtered = hp.filtering.filter_signal(example[0,:], cutoff=(1,2), sample_rate=35.0, order=3, filtertype='bandpass')
     # Extract the HRV measures
-    working_data, measures = hp.process(filtered, sample_rate=35)
+    try: 
+        working_data, measures = hp.process(filtered, sample_rate=35)
+        for measure in measures.values():
+            HRV_features.append(measure)
+    except hp.exceptions.BadSignalWarning:
+        measures = [0]*12
+        HRV_features = measures
     # Save the HRV measures for each example
-    for measure in measures.values():
-        HRV_features.append(measure)
     train_HRV_features.append(HRV_features)
 
 test_HRV_features = []
@@ -145,22 +145,41 @@ for example in X_test:
     # Bandpass filter the POS signal
     filtered = hp.filtering.filter_signal(example[0,:], cutoff=(1,2), sample_rate=35.0, order=3, filtertype='bandpass')
     # Extract the HRV measures
-    working_data, measures = hp.process(filtered, sample_rate=35)
+    try: 
+        working_data, measures = hp.process(filtered, sample_rate=35)
+        for measure in measures.values():
+            HRV_features.append(measure)
+    except hp.exceptions.BadSignalWarning:
+        measures = [0]*12
+        HRV_features = measures
     # Save the HRV measures for each example
-    for measure in measures.values():
-        HRV_features.append(measure)
     test_HRV_features.append(HRV_features)
 
+# Hopefully get around the error
+X_train[X_train == np.inf] = 0
+X_train[X_train == -np.inf] = 0
+X_train[X_train == np.nan] = 0
+
+X_test[X_test == np.inf] = 0
+X_test[X_test == -np.inf] = 0
+X_test[X_test == np.nan] = 0
 
 # Convert the multivariate TS to sktime format
 X_train = from_3d_numpy_to_nested(X_train)
 X_test = from_3d_numpy_to_nested(X_test)
+'''
 # ROCKET transform
 rocket = Rocket(num_kernels=10000, normalise=True, n_jobs=-1)
 rocket.fit(X_train)
 X_train_transform = rocket.transform(X_train)
 print(X_train_transform.shape)
 X_test_transform = rocket.transform(X_test)
+'''
+# TSFresh  transform
+t = TSFreshFeatureExtractor(default_fc_parameters="efficient", show_warnings=False)
+X_train_transform = t.fit_transform(X_train)
+X_test_transform = t.transform(X_test)
+print(X_train_transform.shape)
 
 
 # Re-add HRV features + remove any NaNs that come from bad signals
@@ -180,6 +199,8 @@ scaler = StandardScaler()
 X_train_transform = scaler.fit_transform(X_train_transform)
 X_test_transform = scaler.transform(X_test_transform)
 
+X_train_transform = np.nan_to_num(X_train_transform)
+X_test_transform = np.nan_to_num(X_test_transform)
 
 # Do PCA and have a look
 pca = PCA(n_components=10)

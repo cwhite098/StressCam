@@ -11,21 +11,24 @@ from threading import Thread
 import mediapipe as mp
 
 class Resp_Rate:
-    def __init__(self, cap=None, ROI_buffer_y_upper=70, ROI_buffer_y_lower=30, refresh_rate=30, win_size=300, vid=None, ROI=None):
+    def __init__(self, fps,  cap=None, ROI_buffer_y_upper=70, ROI_buffer_y_lower=30, refresh_rate=30, win_size=300, vid=None, ROI=None):
         self.vid = vid
         self.ROI = ROI
         self.First = True
         self.refresh_rate = refresh_rate 
         self.win_size = win_size # number of frame on plot
-        self.fps = 15
+        self.fps = fps
         self.p_y_f = []
         self.p_norm = np.array([0] * self.win_size)
         self.cap = cap
         self.ROI_buffer_y_upper = ROI_buffer_y_upper
         self.ROI_buffer_y_lower = ROI_buffer_y_lower
 
+        self.b, self.a = signal.butter(3, (0.05, 2), fs=15 if self.fps<4 else self.fps, btype='bandpass', analog=False)
+
         '''Initialise plotting canvas'''
         # plt.ion
+        '''
         self.fig, self.ax = plt.subplots(1, 1)
         self.ax.set_xlim(0, self.win_size)
         self.ax.set_ylim(-2.5, 2.5)
@@ -35,22 +38,30 @@ class Resp_Rate:
         self.fig.show()
         self.fig.canvas.draw()
         self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
+        '''
 
-    def find_ROI(self, img):
+    def find_ROI(self, img, mp_holistic, holistic):
         '''Find ROI'''
         image_height, image_width, _ = img.shape
-        mp_holistic = mp.solutions.holistic
-        with mp_holistic.Holistic() as holistic:
-            results = holistic.process(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+        results = holistic.process(cv.cvtColor(img, cv.COLOR_BGR2RGB))
+
+        if results.pose_landmarks:
             shoulder_xs, shoulder_ys = (results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].x * image_width,
             results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].x * image_width), (
                 results.pose_landmarks.landmark[mp_holistic.PoseLandmark.LEFT_SHOULDER].y * image_height,
                 results.pose_landmarks.landmark[mp_holistic.PoseLandmark.RIGHT_SHOULDER].y * image_height)
-        if max(shoulder_ys)+self.ROI_buffer_y_lower > image_height:
-            self.ROI_buffer_y_lower = image_height - max(shoulder_ys)
-        self.ROI = [int(shoulder_xs[1]), int(min(shoulder_ys)-self.ROI_buffer_y_upper),
-        int(shoulder_xs[0]), int(max(shoulder_ys)+self.ROI_buffer_y_lower)]
-        self.y_len, self.x_len = (int(self.ROI[3]-self.ROI[1]), int(shoulder_xs[0]-shoulder_xs[1]))
+
+            if max(shoulder_ys)+self.ROI_buffer_y_lower > image_height:
+                self.ROI_buffer_y_lower = image_height - max(shoulder_ys)
+
+            self.ROI = [int(shoulder_xs[1]), int(min(shoulder_ys)-self.ROI_buffer_y_upper),
+            int(shoulder_xs[0]), int(max(shoulder_ys)+self.ROI_buffer_y_lower)]
+            self.y_len, self.x_len = (int(self.ROI[3]-self.ROI[1]), int(shoulder_xs[0]-shoulder_xs[1]))
+            self.First = False
+        else:
+            print('Cannot find shoulders, SKIPPING')
+            self.First = True
+            self.y_len = 1
 
     def resp_pattern(self, frames):
         '''Extract respiration pattern'''
@@ -72,21 +83,28 @@ class Resp_Rate:
         y = signal.lfilter(b, a, p_f)
         self.p_norm = (y-np.mean(y))/np.std(y)
 
+
     def resp_pattern_per_frame(self, frame, fps):
         # Calculate averaged intensity componenets
         self.p_y_f[0:-1,:] = self.p_y_f[1:,:] # move values forward by one row
         p_f = np.sum(np.sum(frame, axis=2), axis=1)/self.x_len
         p_f_detrend = signal.detrend(p_f, type='constant')
+
         self.p_y_f[-1,:] = p_f_detrend # (refresh_rate(n frames) x y_len)
-        sd_list = [np.std(self.p_y_f[:, y]) for y in range(self.y_len)] # (y_lne x 1)
-        largest_sd = nlargest(int(0.05*self.y_len), sd_list)
-        idx = [np.where(sd_list==i)[0] for i in largest_sd]
+        #sd_list = [np.std(self.p_y_f[:, y]) for y in range(self.y_len)] # (y_lne x 1)
+        sd_list = np.std(self.p_y_f, axis=0)
+
+        #largest_sd = nlargest(int(0.05*self.y_len), sd_list)
+        idx = np.argsort(sd_list)[-int(0.05*self.y_len):]
+
         p_5per = self.p_y_f[:, idx]
-        p_f = [np.mean(i) for i in p_5per]
-        b, a = signal.butter(3, (0.05, 2), fs=15 if fps<4 else fps, btype='bandpass', analog=False)
-        y = signal.lfilter(b, a, p_f)
+        p_f = np.mean(p_5per, 1)
+        
+        y = signal.lfilter(self.b, self.a, p_f)
+
         self.p_norm = (y-np.mean(y))/np.std(y) # (refresh_rate x 1)
         pass
+
 
     def resp_rate(self, n_frame, fps):
         '''Calculate respiration rate from signal'''
@@ -103,17 +121,20 @@ class Resp_Rate:
         f_R = len(min_idx_list)/((n_frame/fps)/60) # number of breath / ((number of frame / 30 fps) / 60)
         return f_R
 
-    def vid_feed_per_frame_analysis(self, frame, fps, frame_num):
+    def vid_feed_per_frame_analysis(self, frame, fps, frame_num, mp_holistic, holistic):
         if self.First:
             '''Initialise ROI'''
-            self.find_ROI(frame)
+            self.find_ROI(frame, mp_holistic, holistic)
             '''Initialise matrices'''
             self.p_y_f = np.array([[0] * self.y_len] * frame_num)
             self.p_norm = np.array([0] * frame_num)
-            self.init, self.f, self.First = True, 1, False
-        '''Process pre recorded video'''
-        cropped = frame[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
-        self.resp_pattern_per_frame(cropped, fps)
+            self.init, self.f = True, 1
+        if not self.First:
+            '''Process pre recorded video'''
+            cropped = frame[self.ROI[1]:self.ROI[3], self.ROI[0]:self.ROI[2]]
+            self.resp_pattern_per_frame(cropped, fps)
+    
+
     
     def live_feed_per_frame_animate(self, i):
         '''Function for live feed with animated bmp graph'''
