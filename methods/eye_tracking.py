@@ -101,7 +101,7 @@ class EyeTracker:
 
             # Discard result if multiple are found, increase threshold
             elif len(circ[0]) != 1:
-                print(circ)
+
                 if eye.tracker < 20:
                     eye.circles = eye.saved_prev
                 eye.tracker += 1

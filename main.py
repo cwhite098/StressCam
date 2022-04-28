@@ -50,7 +50,7 @@ HRM = Heart_Rate_Monitor(fps, realWidth, realHeight, show_plots=True, process_si
 BD = Eyes_Mouth_Detector(show_plots=True)
 HT = Head_Tracker(realWidth, realHeight, show_plots=True)
 ET = EyeTracker()
-RR = Resp_Rate(cap=cap)
+RR = Resp_Rate(cap=cap, fps=fps)
 
 cv2.namedWindow("Display_Image", cv2.WINDOW_NORMAL)
 cv2.namedWindow('HRM frame', cv2.WINDOW_NORMAL)
