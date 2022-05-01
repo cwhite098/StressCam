@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -85,6 +86,7 @@ class EyeTracker:
                                         param1=np.mean(grey_eye_box), param2=eye.threshold,
                                         minRadius=int(eye_width / 5),
                                         maxRadius=int(eye_width / 4))
+                cv2.imshow('eye_box', grey_eye_box)
             except:
                 circ = None
 
@@ -177,3 +179,35 @@ class EyeTracker:
         """
         self.data = [self.l_eye.history, self.r_eye.history]
         return self.data
+
+
+def draw_circle_on_image(path):
+
+    image = cv2.imread(path, 0)
+
+    circ = cv2.HoughCircles(image, cv2.HOUGH_GRADIENT, 1, 20,
+                            param1=60, param2=25,
+                            minRadius=40,
+                            maxRadius=70)
+
+    image = cv2.cvtColor(image, cv2.COLOR_GRAY2RGB)
+    try:
+        circle = np.uint16(np.around(circ))
+
+        for i in circle[0, :]:
+            # draw the outer circle
+            cv2.circle(image, (i[0], i[1]), i[2], (0, 255, 0), 2)
+            # draw the center of the circle
+            cv2.circle(image, (i[0], i[1]), 2, (0, 0, 255), 3)
+    except Exception as e:
+        print("no circles found")
+
+    cv2.imshow('image', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+
+if __name__ == '__main__':
+    draw_circle_on_image('C:/Users/Theo/PycharmProjects/StressCam/datas/grey eye box.png')
+
