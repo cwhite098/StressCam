@@ -4,6 +4,7 @@ import heartpy as hp
 import numpy as np
 import tsfresh
 import pickle
+from sklearn.preprocessing import StandardScaler
 import keras
 from sktime.transformations.panel.tsfresh import TSFreshFeatureExtractor
 from timeit import default_timer as timer
@@ -27,23 +28,29 @@ class StressPredictor:
         X = np.array(df[labels])
 
         where_is_pinf = np.array(np.where(np.isposinf(X)))
+        # for i in range(len(where_is_pinf[0])):
+        #     X[where_is_pinf[0, i], where_is_pinf[1, i]] = 0
 
         for i in range(len(where_is_pinf[0])):
-            X[where_is_pinf[0, i], where_is_pinf[1, i], where_is_pinf[2, i]] = np.mean(
-                (X[where_is_pinf[0, i] - 1, where_is_pinf[1, i], where_is_pinf[2, i]],
-                 X[where_is_pinf[0, i] + 1, where_is_pinf[1, i], where_is_pinf[2, i]])
+            X[where_is_pinf[0, i], where_is_pinf[1, i]] = np.mean(
+                (X[where_is_pinf[0, i] - 1, where_is_pinf[1, i]],
+                 X[where_is_pinf[0, i] + 1, where_is_pinf[1, i]])
             )
 
         where_is_pinf = np.array(np.where(np.isnan(X)))
-        for i in range(len(where_is_pinf[0])):
-            X[where_is_pinf[0, i], where_is_pinf[1, i], where_is_pinf[2, i]] = np.mean(
-                (X[where_is_pinf[0, i] - 1, where_is_pinf[1, i], where_is_pinf[2, i]],
-                 X[where_is_pinf[0, i] + 1, where_is_pinf[1, i], where_is_pinf[2, i]])
-            )
+        try:
+            for i in range(len(where_is_pinf[0])):
+                X[where_is_pinf[0, i], where_is_pinf[1, i]] = np.mean(
+                    (X[where_is_pinf[0, i] - 1, where_is_pinf[1, i]],
+                     X[where_is_pinf[0, i] + 1, where_is_pinf[1, i]])
+                )
+        except:
+            for i in range(len(where_is_pinf[0])):
+                X[where_is_pinf[0, i], where_is_pinf[1, i]] = 0
 
-        where_is_pinf = np.array(np.where(np.isnan(X)))
-        for i in range(len(where_is_pinf[0])):
-            X[where_is_pinf[0, i], where_is_pinf[1, i], where_is_pinf[2, i]] = 0
+        # where_is_pinf = np.array(np.where(np.isnan(X)))
+        # for i in range(len(where_is_pinf[0])):
+        #     X[where_is_pinf[0, i], where_is_pinf[1, i]] = 0
 
         HRV_features = []
         # Bandpass filter the POS signal
@@ -57,8 +64,9 @@ class StressPredictor:
             measures = [0] * 12
             HRV_features = measures
 
-        # Save the HRV measures for each example
-        HRV_features.append(HRV_features)
+        if np.nan in HRV_features:
+            HRV_features = [0]*12
+
 
         return pd.DataFrame(X), pd.DataFrame(HRV_features)
 
@@ -93,6 +101,38 @@ class StressPredictor:
         # Add the selected HRV features to df
         feature_df = pd.concat([X_fit, HRV_features.transpose()], axis=1).astype('float32')
 
+        support_file = 'model/support.obj'
+        with open(support_file, 'rb') as f:
+            support = pickle.load(f)
+
+        scaler_file = 'model/scaler.obj'
+        with open(scaler_file, 'rb') as f:
+            scaler = pickle.load(f)
+
+        i = feature_df.transpose()
+
+        build = pd.DataFrame(np.zeros(scaler.n_features_in_))
+
+        counter = 0
+
+        for idx, s in enumerate(support):
+            if s:
+                build.iloc[idx] = i.iloc[counter]
+                counter += 1
+        scaled = scaler.transform(build.transpose())
+
+        # print(scaled[0].transpose()[support])
+
+        scaled = np.array(scaled[0].transpose()[support])
+
+        feature_df = scaled.reshape(1, 200)
+        #print(feature_df)
+
+        # scaler = StandardScaler()
+        # i[:] = scaler.fit_transform(i[:])
+        # feature_df = i.transpose()
+        # print(feature_df)
+
         return feature_df
 
     def predict(self, ts_file_path):
@@ -103,9 +143,16 @@ class StressPredictor:
 
 
 def main():
-    p = StressPredictor('model/tf')
-    prediction = p.predict('datas/vid_s8_T1.csv')
+    p = StressPredictor('model/h5_model.h5')
+
+    prediction = p.predict('datas/finn/finn_1_11.csv')
+
     print(prediction)
+
+    classes = {0: "Not stressed", 1: "Stressed"}
+
+    print(classes[prediction.argmax(axis=-1)[0]])
+
     # print(f'Timings\n'
     #       f'Pre-processing ------- {t2 - t1}\n'
     #       f'Feature Extraction --- {t3 - t2}\n'
